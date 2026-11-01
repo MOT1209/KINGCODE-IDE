@@ -25,12 +25,12 @@
 .btn:active { transform: translateY(1px); }
 
 .btn.primary {
-  background: linear-gradient(90deg, #0b7fe8, #0098ff);
+  background: var(--accent);
   border-color: transparent;
   color: #fff;
   font-weight: 600;
 }
-.btn.primary:hover { filter: brightness(1.08); background: linear-gradient(90deg, #0b7fe8, #0098ff); }
+.btn.primary:hover { background: var(--accent-strong); }
 
 .btn.danger {
   background: var(--danger);
@@ -84,7 +84,7 @@
 .file-item:hover { background: var(--hover); color: var(--text); }
 .file-item.active {
   background: var(--accent-soft);
-  border-color: rgba(0, 152, 255, 0.28);
+  border-color: rgba(77, 163, 255, 0.32);
   color: var(--text);
 }
 .file-item.dirty .file-name::after {
@@ -150,12 +150,12 @@
   padding: 9px 12px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(90deg, #0b7fe8, #0098ff);
+  background: var(--accent);
   border: none;
-  border-radius: 10px;
-  transition: filter 0.15s, transform 0.06s;
+  border-radius: var(--radius-md);
+  transition: background 0.15s, transform 0.06s;
 }
-.install-btn:hover { filter: brightness(1.1); }
+.install-btn:hover { background: var(--accent-strong); }
 .install-btn:active { transform: translateY(1px); }
 
 /* ---------- شريط التبويبات ---------- */
@@ -221,9 +221,28 @@ iframe#preview-frame {
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--bg);
   display: block;
 }
+
+/* ---------- حالة المعاينة الفارغة (وضع ترحيبي واضح) ---------- */
+.preview-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--text-dim);
+}
+.preview-empty .pv-glyph { font-size: 40px; opacity: 0.55; }
+.preview-empty h4 { font-size: 15px; font-weight: 600; color: var(--text); }
+.preview-empty p { font-size: 12.5px; max-width: 30ch; line-height: 1.8; }
+.preview-empty .pv-actions { display: flex; gap: 8px; margin-top: 6px; }
 
 .console {
   flex: none;
@@ -281,7 +300,7 @@ body[data-theme="light"] .console-item.lvl-info { color: #1f6fd0; }
 .CodeMirror-linenumber:hover { color: var(--text); }
 
 .CodeMirror-activeline-background { background: var(--accent-soft) !important; opacity: 0.5; }
-body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0, 130, 220, 0.08) !important; }
+body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(47, 127, 214, 0.10) !important; }
 
 .CodeMirror-cursor { border-left: 2px solid var(--accent-2) !important; }
 
@@ -343,7 +362,7 @@ body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,
   background: var(--panel-elev);
   border: 1px solid var(--border-strong);
   border-inline-start: 3px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transform: translateY(10px) scale(0.97);
@@ -383,7 +402,7 @@ body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-bottom: 0;
-  border-radius: 14px 14px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 .modal-header h3 { font-size: 14px; font-weight: 700; }
 
@@ -397,7 +416,7 @@ body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-top: 0;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .modal-actions {
@@ -428,7 +447,7 @@ body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,
   background: var(--panel-2);
   border: 1px solid var(--border-strong);
   border-bottom: 0;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   outline: none;
 }
 .palette-modal > #cmd-input::placeholder { color: var(--text-faint); }
@@ -456,7 +475,7 @@ body[data-theme="light"] .CodeMirror-activeline-background { background: rgba(0,
   background: var(--panel-2);
   border: 1px solid var(--border-strong);
   border-top: 0;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .cmd-item {
@@ -576,6 +595,7 @@ kbd {
 
 /* ---------- أدوات سريعة للجوال ---------- */
 .edge-toggle {
+  display: none; /* افتراضي: مخفي — لا يظهر على سطح المكتب (يُفعَّل تحت 1024px) */
   position: fixed;
   top: calc(var(--tab-h) + 48px);
   inset-inline-start: 12px;

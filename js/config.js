@@ -73,7 +73,7 @@ body {
   display: grid;
   place-items: center;
   font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
-  background: linear-gradient(135deg, #0f1b2d, #12263f);
+  background: linear-gradient(135deg, #0b1522, #12253a);
   color: #e8eef7;
   padding: 24px;
 }
@@ -92,7 +92,7 @@ body {
 h1 { font-size: 1.7rem; margin-bottom: 10px; }
 
 .grad {
-  background: linear-gradient(90deg, #0098ff, #7ae0ff);
+  background: linear-gradient(90deg, #4da3ff, #8ecbff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -105,14 +105,14 @@ button {
   padding: 12px 26px;
   font-size: 1rem;
   color: #fff;
-  background: linear-gradient(90deg, #0098ff, #0b4fc4);
+  background: linear-gradient(90deg, #4da3ff, #3b8be6);
   border: 0;
   border-radius: 12px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
-button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 152, 255, 0.4); }`
+button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(77, 163, 255, 0.35); }`
     },
     {
       name: 'script.js',
@@ -160,7 +160,7 @@ console.info('نصيحة: Ctrl + S يفتح لوحة الحفظ اليدوي… 
     sql: ['query.sql', '-- استعلام\nSELECT * FROM users;\n'],
     yml: ['config.yml', 'app:\n  name: kingCode\n  offline: true\n'],
     xml: ['data.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n</root>\n'],
-    svg: ['icon.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#0098ff"/></svg>'],
+    svg: ['icon.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4da3ff"/></svg>'],
     htm: null, mjs: 'js', markdown: 'md'
   },
 

@@ -71,8 +71,8 @@ const APP = {
   updateMetaTheme() {
     const meta = U.$('#metaTheme');
     if (!meta) return;
-    const dark = STATE.settings().uiTheme === 'dark';
-    meta.content = dark ? '#0098ff' : '#f4f6fa';
+    const v = getComputedStyle(document.body).getPropertyValue('--statusbar-bg').trim();
+    meta.content = v || (STATE.settings().uiTheme === 'dark' ? '#12253a' : '#1d3152');
   },
 
   registerSw() {

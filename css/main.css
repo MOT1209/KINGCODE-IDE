@@ -3,37 +3,42 @@
  * التوكنات، إعادة الضبط، الهيكل العام، شريط الحالة، الاستجابة
  * ========================================================= */
 
-/* ---------- التوكنات (داكن افتراضي) ---------- */
+/* ---------- التوكنات — الاتجاه المختار: أزرق عميق ناعم (داكن افتراضي) ---------- */
 :root {
   color-scheme: dark;
 
-  --bg: #0e1117;
-  --bg-editor: #131a24;
-  --panel: #161d29;
-  --panel-2: #1b2431;
-  --panel-elev: #1f2a3b;
-  --hover: #1d2635;
+  --bg: #0b1522;
+  --bg-editor: #0e1b2c;
+  --panel: #111f30;
+  --panel-2: #17263c;
+  --panel-elev: #1d3152;
+  --hover: #152840;
 
-  --border: #263043;
-  --border-strong: #33415c;
+  --border: #1e3044;
+  --border-strong: #2e4a6a;
 
-  --text: #dce6f2;
-  --text-dim: #8fa2bd;
-  --text-faint: #64748d;
+  --text: #dce8f4;
+  --text-dim: #7e93a8;
+  --text-faint: #5a7087;
 
-  --accent: #0098ff;
-  --accent-2: #7ae0ff;
-  --accent-soft: rgba(0, 152, 255, 0.14);
-  --statusbar-bg: linear-gradient(90deg, #0b4fc4, #0078d7);
+  --accent: #4da3ff;
+  --accent-2: #8ecbff;
+  --accent-strong: #3b8be6;
+  --accent-soft: rgba(77, 163, 255, 0.14);
+
+  --statusbar-bg: #12253a;
+  --statusbar-ink: #cfe0f2;
 
   --danger: #e35b6d;
-  --ok: #58d98a;
-  --warn: #f5c518;
+  --ok: #5fd38d;
+  --warn: #e8c268;
 
   --ui-font: "Segoe UI", Tahoma, "Noto Kufi Arabic", "Helvetica Neue", Arial, sans-serif;
   --mono: "Cascadia Code", "SF Mono", ui-monospace, Consolas, Menlo, "Courier New", monospace;
 
   --radius: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
   --tab-h: 40px;
   --status-h: 28px;
   --sidebar-w: 240px;
@@ -44,23 +49,27 @@
 body[data-theme="light"] {
   color-scheme: light;
 
-  --bg: #eef2f7;
-  --bg-editor: #ffffff;
+  --bg: #e8eef6;
+  --bg-editor: #f5f9fd;
   --panel: #ffffff;
-  --panel-2: #f6f8fb;
+  --panel-2: #f1f5fa;
   --panel-elev: #ffffff;
-  --hover: #e9eff7;
+  --hover: #dde9f4;
 
-  --border: #d9e1ec;
-  --border-strong: #c2cfdc;
+  --border: #d3dfe9;
+  --border-strong: #b9cadb;
 
-  --text: #1b2634;
-  --text-dim: #5a6b82;
-  --text-faint: #8496ad;
+  --text: #16273c;
+  --text-dim: #4e657e;
+  --text-faint: #72869c;
 
-  --accent: #0077e6;
-  --accent-2: #0b9cff;
-  --accent-soft: rgba(0, 148, 255, 0.12);
+  --accent: #2f7fd6;
+  --accent-2: #2f7fd6;
+  --accent-strong: #1f63b0;
+  --accent-soft: rgba(47, 127, 214, 0.12);
+
+  --statusbar-bg: #1d3152;
+  --statusbar-ink: #cfe0f2;
 }
 
 /* ---------- إعادة الضبط ---------- */
@@ -119,7 +128,7 @@ a { color: var(--accent); }
   gap: 14px;
   padding-inline: 12px;
   font-size: 12px;
-  color: #eaf3ff;
+  color: var(--statusbar-ink);
   background: var(--statusbar-bg);
   user-select: none;
 }
@@ -156,10 +165,10 @@ a { color: var(--accent); }
 .spacer { flex: 1; }
 
 .save-indicator { white-space: nowrap; opacity: 0.9; transition: color 0.2s; }
-.save-indicator.saved { color: #b6ffcf; }
+.save-indicator.saved { color: var(--ok); }
 
 .net-indicator { white-space: nowrap; }
-.net-indicator.offline { color: #ffd9a0; }
+.net-indicator.offline { color: var(--warn); }
 
 /* ---------- الشريط الجانبي ---------- */
 .sidebar {
@@ -333,6 +342,7 @@ body.preview-hidden .preview-container { display: none !important; }
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
   background: var(--bg);
 }
 

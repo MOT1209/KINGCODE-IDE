@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="kingCode — محرر أكواد احترافي يعمل في المتصفح ويُثبَّت كتطبيق على الهاتف والآيباد والحاسوب، ويشتغل دون إنترنت." />
   <meta name="color-scheme" content="dark light" />
-  <meta name="theme-color" content="#0098ff" id="metaTheme" />
+  <meta name="theme-color" content="#12253a" id="metaTheme" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -110,6 +110,15 @@
             <div class="preview-body">
               <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"
                       allowtransparency="true" title="معاينة المشروع"></iframe>
+              <div class="preview-empty" id="previewWelcome" role="status" aria-label="لا توجد معاينة بعد">
+                <div class="pv-glyph">⚡</div>
+                <h4>لا توجد معاينة بعد</h4>
+                <p>أنشئ ملف HTML وابدأ الكتابة، وستُحدَّث المعاينة هنا تلقائيًا.</p>
+                <div class="pv-actions">
+                  <button class="btn primary" onclick="files.newFile()">+ ملف جديد</button>
+                  <button class="btn" onclick="preview.refresh()">⟳ تحديث</button>
+                </div>
+              </div>
               <div class="console" id="console-output" dir="ltr" aria-live="polite" aria-label="سجل الكونسول"></div>
             </div>
           </section>

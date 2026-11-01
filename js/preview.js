@@ -36,6 +36,11 @@ const PREVIEW = {
 
   refresh() {
     if (!this.frame) return;
+    /* حالة الترحيب: مرئية حين لا توجد ملفات، وتُخفى فور وجود أي محتوى */
+    const files = STATE.files();
+    const wel = document.getElementById('previewWelcome');
+    if (wel) wel.classList.toggle('hidden', files.length > 0);
+    if (!files.length) { this.frame.srcdoc = ''; return; }
     try {
       this.frame.srcdoc = this.buildDocument();
       UI.consoleAppend('system', '⟳ تحديث المعاينة');
@@ -54,8 +59,8 @@ const PREVIEW = {
     const files = STATE.files();
     if (!files.length) {
       return `<!doctype html><meta charset="utf-8">
-      <body style="font-family:system-ui;background:#10141c;color:#8899aa;display:grid;place-items:center;height:100vh">
-      <div style="text-align:center">لا يوجد ملفات 📭<br><small>أنشئ ملفًا من الشريط الجانبي</small></div></body>`;
+      <body style="font-family:system-ui;background:#0b1522;color:#7e93a8;display:grid;place-items:center;height:100vh;direction:rtl">
+      <div style="text-align:center">لا توجد ملفات 📭<br><small>أنشئ ملفًا من الشريط الجانبي</small></div></body>`;
     }
 
     /* إن تم إصدار الملف الحالي HTML، تُبنى المعاينة من إحتماله */
