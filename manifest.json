@@ -1,0 +1,37 @@
+{
+  "name": "kingCode",
+  "short_name": "kingCode",
+  "id": "./",
+  "description": "محرر أكواد احترافي متجاوب يعمل على الهاتف والحاسوب والآيباد، مع معاينة مباشرة وتشغيل كامل دون إنترنت.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#1a1a1a",
+  "theme_color": "#0098ff",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["developer", "productivity"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "ملف جديد",
+      "short_name": "جديد",
+      "url": "./index.html?action=new-file",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "فتح المعاينة",
+      "short_name": "معاينة",
+      "url": "./index.html?action=preview",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

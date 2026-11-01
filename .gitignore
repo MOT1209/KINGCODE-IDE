@@ -1,0 +1,6 @@
+# Playwright MCP session artifacts (console logs, page snapshots)
+.playwright-mcp/
+
+# OS / editor junk
+Thumbs.db
+Desktop.ini

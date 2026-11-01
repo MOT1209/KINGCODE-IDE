@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="kingCode — محرر أكواد احترافي يعمل في المتصفح ويُثبَّت كتطبيق على الهاتف والآيباد والحاسوب، ويشتغل دون إنترنت." />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0098ff" id="metaTheme" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="kingCode" />
+  <title>⚡ kingCode</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+  <!-- CodeMirror (محلي بالكامل — يعمل دون إنترنت) -->
+  <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css" />
+  <link rel="stylesheet" href="vendor/codemirror/addon/dialog/dialog.min.css" />
+  <link rel="stylesheet" href="vendor/codemirror/addon/hint/show-hint.min.css" />
+  <link rel="stylesheet" href="vendor/codemirror/theme/ayu-mirage.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/dracula.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/material-darker.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/monokai.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/nord.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/base16-dark.min.css" data-cm-theme />
+  <link rel="stylesheet" href="vendor/codemirror/theme/eclipse.min.css" data-cm-theme />
+
+  <!-- kingCode -->
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body data-theme="dark">
+  <noscript><h1 style="padding:20px">يتطلب kingCode تمكين JavaScript في المتصفح ⚡</h1></noscript>
+
+  <div class="app-container">
+
+    <!-- شريط الحالة (أسفل الشاشة — نمط VS Code) -->
+    <footer class="status-bar" id="statusBar">
+      <span class="brand-chip"><span class="brand-bolt">⚡</span> kingCode</span>
+      <span class="status-group" dir="ltr">
+        <span class="file-name" id="statusFile">Untitled</span>
+        <span class="language-info" id="statusLang">HTML</span>
+        <span class="cursor-position" id="statusPos">سطر: 1 | عمود: 1</span>
+      </span>
+      <span class="spacer"></span>
+      <span class="save-indicator" id="saveIndicator" title="الحفظ">💾 جاهز</span>
+      <span class="net-indicator online" id="netIndicator" title="حالة الشبكة">● متصل</span>
+    </footer>
+
+    <div class="layout">
+
+      <!-- الشريط الجانبي (قائمة الملفات) -->
+      <aside class="sidebar" id="sidebar" aria-label="ملفات المشروع">
+        <div class="sidebar-header">
+          <h3>المشروع</h3>
+          <div class="sidebar-actions">
+            <button class="btn btn-icon" id="btnNewFile" title="ملف جديد" onclick="files.newFile()">+</button>
+            <button class="btn btn-icon" id="btnImportFile" title="استيراد ملفات" onclick="files.importFiles()">⭱</button>
+          </div>
+        </div>
+        <ul class="file-list" id="file-list" role="listbox" aria-label="قائمة الملفات"></ul>
+        <button class="btn install-btn hidden" id="btnInstall">⬇️ تثبيت التطبيق</button>
+        <div class="sidebar-footer" id="storageInfo"></div>
+      </aside>
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      <!-- منطقة العمل -->
+      <main class="workspace">
+
+        <div class="tab-bar">
+          <div class="tabs" id="tab-container" role="tablist" dir="ltr" aria-label="التبويبات المفتوحة"></div>
+          <div class="tab-controls">
+            <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)" onclick="ui.openCommandPalette()">⌘</button>
+            <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة" onclick="ui.togglePreview()">◫</button>
+            <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح" onclick="ui.toggleUiTheme()">🌙</button>
+            <button class="btn btn-icon" id="btnSettings" title="الإعدادات" onclick="ui.openSettings()">⚙️</button>
+          </div>
+        </div>
+
+        <div class="main-split" id="mainSplit">
+
+          <div class="editor-pane">
+            <div class="editor-container" id="editor-container" dir="ltr"></div>
+            <div class="editor-empty hidden" id="editorEmpty">
+              <div class="empty-glyph">⚡</div>
+              <p>لا يوجد ملف مفتوح</p>
+              <button class="btn" onclick="files.newFile()">+ ملف جديد</button>
+            </div>
+          </div>
+
+          <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" title="اسحب لتغيير العرض"></div>
+
+          <!-- لوحة المعاينة + الكونسول -->
+          <section class="preview-container" id="preview-container" aria-label="معاينة مباشرة">
+            <div class="preview-header">
+              <span class="preview-title">👁 المعاينة</span>
+              <span class="preview-actions">
+                <button class="btn btn-icon" title="تحديث المعاينة (Ctrl+Enter)" onclick="preview.refresh()"
+                        aria-label="تحديث المعاينة">⟳</button>
+                <button class="btn btn-icon" title="فتح الكونسول أو إخفاؤه" onclick="ui.toggleConsole()"
+                        aria-label="تبديل الكونسول" id="btnConsoleToggle">🖥</button>
+                <button class="btn btn-icon" title="تنزيل المشروع كملف HTML" onclick="files.exportProjectHTML()"
+                        aria-label="تصدير HTML">⤓</button>
+                <button class="btn btn-icon" title="إغلاق المعاينة" onclick="ui.togglePreview()"
+                        aria-label="إغلاق المعاينة">✕</button>
+              </span>
+            </div>
+            <div class="preview-body">
+              <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                      allowtransparency="true" title="معاينة المشروع"></iframe>
+              <div class="console" id="console-output" dir="ltr" aria-live="polite" aria-label="سجل الكونسول"></div>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+
+    <div class="toast-container" id="toast-container" aria-live="assertive"></div>
+
+    <!-- Command Palette -->
+    <div class="modal palette-modal" id="command-palette" style="display: none;" role="dialog" aria-modal="true" aria-label="لوحة الأوامر">
+      <input type="text" placeholder="ابحث في الملفات والأوامر..." id="cmd-input" autocomplete="off" spellcheck="false" />
+      <ul id="cmd-results" role="listbox"></ul>
+      <footer class="palette-hints">
+        <span><kbd>↑↓</kbd> تنقل</span><span><kbd>Enter</kbd> تنفيذ</span><span><kbd>Esc</kbd> إغلاق</span>
+      </footer>
+    </div>
+
+    <!-- الإعدادات -->
+    <div class="modal" id="settings-modal" style="display: none;" role="dialog" aria-modal="true" aria-label="الإعدادات">
+      <header class="modal-header">
+        <h3>⚙️ إعدادات kingCode</h3>
+        <button class="btn btn-icon" onclick="ui.closeModal('settings-modal')" aria-label="إغلاق">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="settings-group">
+          <label for="ui-theme">المظهر العام</label>
+          <select id="ui-theme">
+            <option value="dark">داكن 🌙</option>
+            <option value="light">فاتح ☀️</option>
+          </select>
+        </div>
+        <div class="settings-group">
+          <label for="theme-select">مظهر المحرر (CodeMirror)</label>
+          <select id="theme-select">
+            <optgroup label="داكن">
+              <option value="ayu-mirage">Ayu Mirage</option>
+              <option value="dracula">Dracula</option>
+              <option value="material-darker">Material Darker</option>
+              <option value="monokai">Monokai</option>
+              <option value="nord">Nord</option>
+              <option value="base16-dark">Base16 Dark</option>
+            </optgroup>
+            <optgroup label="فاتح">
+              <option value="eclipse">Eclipse Light</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="settings-group">
+          <label for="font-size-slider">حجم الخط: <output id="font-size-value"></output></label>
+          <input type="range" id="font-size-slider" min="10" max="30" value="14" />
+        </div>
+        <div class="settings-group">
+          <label for="tab-size">حجم المسافة البادئة (Tab)</label>
+          <input type="number" id="tab-size" min="1" max="8" value="2" />
+        </div>
+        <label class="switch-row"><input type="checkbox" id="wrap-lines" /> تفويض الأسطر الطويلة</label>
+        <label class="switch-row"><input type="checkbox" id="show-line-numbers" checked /> عرض أرقام الأسطر</label>
+        <label class="switch-row"><input type="checkbox" id="auto-save" checked /> الحفظ التلقائي</label>
+        <label class="switch-row"><input type="checkbox" id="auto-preview" checked /> المعاينة التلقائية</label>
+        <div class="settings-row-actions">
+          <button class="btn" id="btnExport" onclick="files.exportProject()">📦 تصدير JSON</button>
+          <button class="btn" id="btnImport" onclick="files.importProject()">📥 استيراد JSON</button>
+          <input type="file" id="import-json-input" accept=".json" hidden />
+        </div>
+        <div class="modal-actions">
+          <button class="btn primary" onclick="ui.closeModal('settings-modal')">تم</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- تأكيد -->
+    <div class="modal" id="confirm-modal" style="display: none;" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+      <header class="modal-header">
+        <h3 id="confirm-title">تأكيد</h3>
+      </header>
+      <div class="modal-body">
+        <p id="confirm-msg" class="confirm-msg"></p>
+        <div class="modal-actions">
+          <button class="btn danger" id="confirm-ok">موافق</button>
+          <button class="btn" id="confirm-cancel">إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- إدخال -->
+    <div class="modal" id="prompt-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="prompt-title">
+      <header class="modal-header">
+        <h3 id="prompt-title">إدخال</h3>
+      </header>
+      <div class="modal-body">
+        <input type="text" id="prompt-input" autocomplete="off" spellcheck="false" dir="auto" />
+        <div class="modal-actions">
+          <button class="btn primary" id="prompt-ok">موافق</button>
+          <button class="btn" id="prompt-cancel">إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <input type="file" id="import-files-input" multiple hidden
+         accept=".html,.htm,.css,.js,.mjs,.json,.md,.txt,.xml,.svg,.yml,.yaml,.py,.sql" />
+
+  <!-- CodeMirror core + modes + addons (محلي) -->
+  <script src="vendor/codemirror/codemirror.min.js"></script>
+  <script src="vendor/codemirror/mode/xml/xml.min.js"></script>
+  <script src="vendor/codemirror/mode/javascript/javascript.min.js"></script>
+  <script src="vendor/codemirror/mode/css/css.min.js"></script>
+  <script src="vendor/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="vendor/codemirror/mode/markdown/markdown.min.js"></script>
+  <script src="vendor/codemirror/mode/python/python.min.js"></script>
+  <script src="vendor/codemirror/mode/sql/sql.min.js"></script>
+  <script src="vendor/codemirror/mode/yaml/yaml.min.js"></script>
+  <script src="vendor/codemirror/addon/dialog/dialog.min.js"></script>
+  <script src="vendor/codemirror/addon/search/searchcursor.min.js"></script>
+  <script src="vendor/codemirror/addon/search/search.min.js"></script>
+  <script src="vendor/codemirror/addon/search/jump-to-line.min.js"></script>
+  <script src="vendor/codemirror/addon/comment/comment.min.js"></script>
+  <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
+  <script src="vendor/codemirror/addon/edit/closetag.min.js"></script>
+  <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
+  <script src="vendor/codemirror/addon/selection/active-line.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/xml-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/html-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
+  <script src="vendor/codemirror/addon/hint/javascript-hint.min.js"></script>
+
+  <!-- kingCode app -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/files.js"></script>
+  <script src="js/list.js"></script>
+  <script src="js/tabs.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

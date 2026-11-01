@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>اختيار اتجاه التصميم — kingCode</title>
+<style>
+/* =====================================================
+   صفحة اختيار التصميم — ذاتية الاحتواء بالكامل (RTL عربي)
+   بلا أي أصول خارجية، تعمل من الملف مباشرة أو من الخادم.
+   ===================================================== */
+
+/* ---------- توكنات غلاف الصفحة (محايد فاتح) ---------- */
+:root {
+  color-scheme: light;
+  --c-bg: #f3f4f2;
+  --c-panel: #ffffff;
+  --c-ink: #20282f;
+  --c-dim: #5d6a76;
+  --c-faint: #8b96a1;
+  --c-edge: #dfe3e7;
+  --c-acc: #0f766e;
+  --c-accd: #0b5a54;
+  --ui-font: "Segoe UI", Tahoma, "Noto Kufi Arabic", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Code", "SF Mono", ui-monospace, Consolas, Menlo, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--ui-font);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--c-ink);
+  background: var(--c-bg);
+  padding: 24px 16px 120px;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+/* ---------- ترويسة ---------- */
+header.top { margin-bottom: 28px; }
+header.top h1 { font-size: 22px; font-weight: 700; letter-spacing: 0; margin-bottom: 8px; }
+header.top h1 .bolt { color: var(--c-acc); }
+header.top p { color: var(--c-dim); max-width: 62ch; }
+header.top .kbd-hint {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px; padding: 6px 12px;
+  background: var(--c-panel); border: 1px solid var(--c-edge); border-radius: 8px;
+  font-size: 13px; color: var(--c-dim);
+}
+kbd {
+  font-family: var(--mono); font-size: 12px;
+  padding: 1px 6px; border-radius: 4px;
+  background: #eef0f2; border: 1px solid var(--c-edge); border-bottom-width: 2px;
+}
+
+/* ---------- شبكة البطاقات ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 760px)  { .grid { grid-template-columns: 1fr 1fr; } }
+
+.card {
+  background: var(--c-panel);
+  border: 1px solid var(--c-edge);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .15s, box-shadow .15s;
+}
+.card:hover { border-color: #c8cfd6; }
+.card.picked { border-color: var(--c-acc); box-shadow: 0 0 0 2px rgba(15, 118, 110, .25); }
+
+.card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 10px;
+}
+.num {
+  flex: none; width: 28px; height: 28px;
+  display: grid; place-content: center;
+  border-radius: 7px;
+  background: #eceded; border: 1px solid var(--c-edge);
+  font-weight: 700; font-size: 13px; color: var(--c-dim);
+}
+.card.picked .num { background: var(--c-acc); color: #fff; border-color: var(--c-accd); }
+.card-head h2 { font-size: 16px; font-weight: 700; }
+.card-head .tag { font-size: 12px; color: var(--c-faint); margin-inline-start: auto; white-space: nowrap; }
+
+/* ---------- الموك (محاكاة مصغّرة ثابتة) ---------- */
+.mock {
+  flex: none;
+  height: 250px;
+  display: flex; flex-direction: column;
+  font-size: 11px;
+  direction: rtl;
+  border-block: 1px solid var(--c-edge);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* خصائص لكل اتجاه (أوراق محلية) */
+.mock.d1 { --m-bg:#f7f8f8; --m-panel:#ffffff; --m-side:#f1f3f4; --m-edge:#e2e6e9; --m-ink:#252e38; --m-dim:#77828e; --m-acc:#0e7490; --m-accb:#0a5a70; --m-ok:#167d43; --m-warn:#b45309; --m-r:6px; --m-status:#2b3a4a; --m-status-ink:#e3ecf4; }
+.mock.d2 { --m-bg:#0f1115; --m-panel:#151920; --m-side:#12161c; --m-edge:#272e38; --m-ink:#d4dce5; --m-dim:#7c8693; --m-acc:#4ade80; --m-accb:#31a561; --m-ok:#4ade80; --m-warn:#e2b93b; --m-r:2px; --m-status:#12161c; --m-status-ink:#b9c4cf; }
+.mock.d3 { --m-bg:#0b1522; --m-panel:#111f30; --m-side:#0e1a29; --m-edge:#1e3044; --m-ink:#dce8f4; --m-dim:#7e93a8; --m-acc:#4da3ff; --m-accb:#3b8be6; --m-ok:#5fd38d; --m-warn:#e8c268; --m-r:12px; --m-status:#12253a; --m-status-ink:#cfe0f2; }
+.mock.d4 { --m-bg:#171310; --m-panel:#201a16; --m-side:#1c1713; --m-edge:#332a24; --m-ink:#ecdfcf; --m-dim:#a39279; --m-acc:#e0a458; --m-accb:#c98c42; --m-ok:#8bbf7a; --m-warn:#e8c268; --m-r:4px; --m-status:#241c16; --m-status-ink:#eeddc8; }
+
+/* شريط علوي + تبويبات */
+.m-top {
+  flex: none; height: 30px;
+  display: flex; align-items: stretch; justify-content: space-between;
+  background: var(--m-side);
+  border-bottom: 1px solid var(--m-edge);
+}
+.m-brand {
+  align-self: center; padding-inline: 10px;
+  font-weight: 700; font-size: 10.5px; color: var(--m-ink);
+  white-space: nowrap;
+}
+.m-tabs { flex: 1; display: flex; align-items: stretch; direction: ltr; min-width: 0; overflow: hidden; }
+.m-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0 10px; font-size: 10.5px; color: var(--m-dim);
+  border-inline-end: 1px solid var(--m-edge);
+  white-space: nowrap;
+}
+.m-tab.on {
+  color: var(--m-ink); background: var(--m-panel);
+  box-shadow: inset 0 -2px 0 var(--m-acc);
+  border-radius: 0;
+}
+.m-tools { align-self: center; display: flex; gap: 6px; padding-inline: 8px; color: var(--m-dim); font-size: 10px; }
+
+/* الجسم: جانبي | محرر | معاينة */
+.m-body { flex: 1; min-height: 0; display: flex; direction: rtl; }
+.m-side {
+  flex: none; width: 96px;
+  background: var(--m-side);
+  border-inline-end: 1px solid var(--m-edge);
+  padding: 8px 0 6px;
+  overflow: hidden;
+}
+.m-side-h { padding: 0 10px 6px; font-size: 9.5px; font-weight: 700; color: var(--m-dim); letter-spacing: .04em; }
+.m-file {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 10.5px; color: var(--m-dim);
+  direction: ltr; text-align: left;
+}
+.m-file .ico { opacity: .75; direction: rtl; }
+.m-file.on { color: var(--m-ink); background: var(--m-panel); box-shadow: inset 2px 0 0 var(--m-acc); }
+
+.m-ed {
+  flex: 1; min-width: 0;
+  background: var(--m-bg);
+  padding: 8px 2px 8px 0;
+  font-family: var(--mono); font-size: 10px; line-height: 1.75;
+  direction: ltr; overflow: hidden;
+}
+.m-ed .ln { display: flex; gap: 8px; padding-right: 6px; white-space: nowrap; }
+.m-ed .no { flex: none; width: 18px; text-align: right; color: var(--m-dim); opacity: .65; }
+.t-tag { color: var(--m-acc); }
+.t-str { color: var(--m-ok); }
+.t-com { color: var(--m-dim); opacity: .7; }
+.m-ed .crt { display: inline-block; width: 1.5px; height: 10px; background: var(--m-acc); vertical-align: -1px; }
+
+.m-prev {
+  flex: none; width: 42%;
+  border-inline-start: 1px solid var(--m-edge);
+  background: var(--m-panel);
+  display: flex; flex-direction: column;
+}
+.m-prev-h {
+  flex: none; height: 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px;
+  font-size: 9.5px; color: var(--m-dim);
+  border-bottom: 1px solid var(--m-edge);
+  direction: rtl;
+}
+.m-prev-body {
+  flex: 1; margin: 8px; border-radius: var(--m-r);
+  background: var(--m-bg);
+  border: 1px solid var(--m-edge);
+  padding: 10px 12px;
+  direction: rtl;
+}
+.m-hero { font-size: 12px; font-weight: 700; color: var(--m-ink); margin-bottom: 4px; }
+.m-hero .ac { color: var(--m-acc); }
+.m-sub { font-size: 9.5px; color: var(--m-dim); margin-bottom: 8px; }
+.m-chiprow { display: flex; gap: 5px; }
+.m-chip {
+  padding: 2px 8px; border-radius: var(--m-r);
+  font-size: 9px;
+  background: var(--m-side); border: 1px solid var(--m-edge); color: var(--m-dim);
+}
+.m-chip.acc { background: var(--m-acc); border-color: var(--m-accb); color: #fff; font-weight: 600; }
+
+/* كونسول */
+.m-console {
+  flex: none; height: 44px;
+  border-top: 1px solid var(--m-edge);
+  background: var(--m-panel);
+  padding: 5px 10px;
+  font-family: var(--mono); font-size: 9.5px; line-height: 1.7;
+  direction: ltr; overflow: hidden; color: var(--m-dim);
+}
+.m-console .warn { color: var(--m-warn); }
+
+/* شريط الحالة */
+.m-status {
+  flex: none; height: 22px;
+  display: flex; align-items: center;
+  gap: 10px; padding: 0 10px;
+  background: var(--m-status);
+  color: var(--m-status-ink);
+  font-size: 9.5px;
+  direction: ltr;
+}
+.m-status .ar { direction: rtl; unicode-bidi: isolate; }
+.m-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--m-acc); }
+
+/* ---------- عيّنة الألوان ---------- */
+.swatches { display: flex; gap: 6px; padding: 10px 16px 2px; }
+.sw {
+  width: 20px; height: 20px; border-radius: 5px;
+  border: 1px solid rgba(0,0,0,.14); cursor: default;
+}
+.lg { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 16px 0; font-size: 11.5px; color: var(--c-dim); }
+.lg span b { color: var(--c-ink); font-weight: 600; }
+
+/* ---------- وصف + زر ---------- */
+.card-desc { padding: 10px 16px 0; font-size: 13px; color: var(--c-dim); }
+.card-specs {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 10px 16px 14px;
+}
+.spec {
+  font-size: 11.5px; padding: 3px 10px;
+  border: 1px solid var(--c-edge); border-radius: 6px;
+  color: var(--c-ink); background: #f7f8f8;
+}
+.card-act {
+  margin-top: auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px 16px;
+}
+.btn-pick {
+  font: inherit; font-size: 13.5px; font-weight: 700;
+  padding: 8px 20px;
+  background: var(--c-ink); color: #fff;
+  border: 1px solid var(--c-ink); border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-pick:hover { background: #39424c; }
+.btn-pick:focus-visible { outline: 2px solid var(--c-acc); outline-offset: 2px; }
+.card.picked .btn-pick { background: var(--c-acc); border-color: var(--c-accd); }
+.picked-note { font-size: 12px; color: var(--c-dim); }
+.picked-note b { color: var(--c-accd); }
+
+/* ---------- ملاحظات المراجعة ---------- */
+.plan {
+  margin-top: 40px;
+  background: var(--c-panel);
+  border: 1px solid var(--c-edge);
+  border-radius: 10px;
+  padding: 20px 24px;
+}
+.plan h2 { font-size: 16px; margin-bottom: 10px; }
+.plan ul { padding-inline-start: 20px; color: var(--c-dim); display: grid; gap: 6px; font-size: 13.5px; }
+.plan li::marker { color: var(--c-acc); }
+.plan li b { color: var(--c-ink); font-weight: 600; }
+.plan code {
+  font-family: var(--mono); font-size: 12px;
+  padding: 1px 5px; border-radius: 4px;
+  background: #eef0f2; border: 1px solid var(--c-edge);
+  direction: ltr; unicode-bidi: isolate;
+}
+
+/* ---------- شريط التأكيد الثابت ---------- */
+.picked-bar {
+  position: fixed; inset-inline: 0; bottom: 0;
+  display: none; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--c-ink); color: #fff;
+  font-size: 14px;
+  box-shadow: 0 -8px 24px rgba(0,0,0,.18);
+  z-index: 50;
+}
+.picked-bar.show { display: flex; }
+.picked-bar b { color: #9be3d3; }
+.picked-bar .copy {
+  font-family: var(--mono); font-size: 12.5px;
+  padding: 3px 10px; border-radius: 6px;
+  background: rgba(255,255,255,.12);
+}
+
+footer.note { margin-top: 24px; font-size: 12px; color: var(--c-faint); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1><span class="bolt">⚡</span> اختر اتجاه التصميم لـ kingCode</h1>
+    <p>أربعة مسارات كاملة لمراجعة الواجهة — المحتويات نفسها لا تتبدل، ويتغير النظام البصري فقط: الألوان، الكثافة، أنصاف الأقطار، ونبرة المسافات. الاختيار لا يعدّل ملفات المشروع الآن؛ سأُنفّذ الاتجاه المختار خطوة بخطوة بعد أن تكتب رقمه في الشات.</p>
+    <div class="kbd-hint"><span>اختصار</span> <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> <span>أو زر «اختر هذا» داخل البطاقة</span></div>
+  </header>
+
+  <main class="grid" id="cards">
+
+    <!-- ============ 1 — نهار رمادي هادئ ============ -->
+    <article class="card" data-n="1">
+      <div class="card-head">
+        <span class="num">1</span>
+        <h2>نهار رمادي هادئ</h2>
+        <span class="tag">فاتح · عمل مريح نهارًا</span>
+      </div>
+
+      <div class="mock d1" aria-hidden="true">
+        <div class="m-top">
+          <span class="m-brand">⚡ kingCode</span>
+          <span class="m-tabs">
+            <span class="m-tab on">index.html</span>
+            <span class="m-tab">style.css</span>
+            <span class="m-tab">app.js</span>
+          </span>
+          <span class="m-tools">⊞ ⌘ ◌</span>
+        </div>
+        <div class="m-body">
+          <div class="m-side">
+            <div class="m-side-h">المشروع</div>
+            <div class="m-file on"><span class="ico">▤</span>index.html</div>
+            <div class="m-file"><span class="ico">◧</span>style.css</div>
+            <div class="m-file"><span class="ico">◨</span>app.js</div>
+            <div class="m-file"><span class="ico">≡</span>README.md</div>
+          </div>
+          <div class="m-ed">
+            <div class="ln"><span class="no">1</span><span><span class="t-tag">&lt;!DOCTYPE html&gt;</span></span></div>
+            <div class="ln"><span class="no">2</span><span><span class="t-tag">&lt;html</span> <span class="t-str">lang="ar"</span> <span class="t-str">dir="rtl"</span><span class="t-tag">&gt;</span></span></div>
+            <div class="ln"><span class="no">3</span><span>  <span class="t-tag">&lt;h1</span> <span class="t-str">class="hero"</span><span class="t-tag">&gt;</span>مرحبًا بك<span class="t-tag">&lt;/h1&gt;</span></span></div>
+            <div class="ln"><span class="no">4</span><span><span class="crt"></span></span></div>
+          </div>
+          <div class="m-prev">
+            <div class="m-prev-h"><span>المعاينة</span><span>⟳ ✕</span></div>
+            <div class="m-prev-body">
+              <div class="m-hero">مرحبًا <span class="ac">بالمطور</span></div>
+              <div class="m-sub">معاينة مباشرة لمشروعك</div>
+              <div class="m-chiprow">
+                <span class="m-chip acc">تشغيل</span>
+                <span class="m-chip">إعادة تعيين</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-console">
+          <div>&gt; console: ready in 12ms</div>
+          <div class="warn">&gt; ⚠ تحذير: ملف غير محفوظ</div>
+        </div>
+        <div class="m-status">
+          <span class="dot"></span><span>index.html</span><span>HTML</span><span>Ln 4, Col 21</span>
+          <span class="ar">● حفظ تلقائي</span><span class="ar">متصل</span>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <span class="sw" style="background:#f7f8f8" title="خلفية"></span>
+        <span class="sw" style="background:#ffffff" title="لوحة"></span>
+        <span class="sw" style="background:#e2e6e9" title="حدود"></span>
+        <span class="sw" style="background:#252e38" title="نص"></span>
+        <span class="sw" style="background:#0e7490" title="لون التشديد"></span>
+        <span class="sw" style="background:#2b3a4a" title="شريط الحالة"></span>
+      </div>
+      <div class="lg"><span><b>التشديد:</b> أزرق مخضر</span><span><b>أنصاف الأقطار:</b> 6px</span><span><b>الكثافة:</b> متوسطة</span></div>
+      <p class="card-desc">محيط معد للشاشات النهارية: أسطح بيضاء بحدود رقيقة، لون تشديد واحد هادئ (أزرق مخضر)، وشريط حالة كحلي مُعتدل. مثالي من يعمل نهارًا أو يفضّل ورقًا فاتحًا نظيفًا بدون بريق.</p>
+      <div class="card-specs"><span class="spec">تباين 4.5:1</span><span class="spec">تبويبات LTR</span><span class="spec">بلا تدرجات</span></div>
+      <div class="card-act">
+        <button class="btn-pick" type="button">اختر هذا</button>
+        <span class="picked-note">اكتب في الشات: <b>اختر رقم 1</b></span>
+      </div>
+    </article>
+
+    <!-- ============ 2 — طرفية أحادية ============ -->
+    <article class="card" data-n="2">
+      <div class="card-head">
+        <span class="num">2</span>
+        <h2>طرفية أحادية</h2>
+        <span class="tag">داكن · كثافة عالية</span>
+      </div>
+
+      <div class="mock d2" aria-hidden="true">
+        <div class="m-top">
+          <span class="m-brand">⚡ kingCode</span>
+          <span class="m-tabs">
+            <span class="m-tab on">index.html</span>
+            <span class="m-tab">style.css</span>
+            <span class="m-tab">app.js</span>
+          </span>
+          <span class="m-tools">⊞ ⌘ ◌</span>
+        </div>
+        <div class="m-body">
+          <div class="m-side">
+            <div class="m-side-h">المشروع</div>
+            <div class="m-file on"><span class="ico">▤</span>index.html</div>
+            <div class="m-file"><span class="ico">◧</span>style.css</div>
+            <div class="m-file"><span class="ico">◨</span>app.js</div>
+            <div class="m-file"><span class="ico">≡</span>README.md</div>
+          </div>
+          <div class="m-ed">
+            <div class="ln"><span class="no">1</span><span><span class="t-tag">&lt;!DOCTYPE html&gt;</span></span></div>
+            <div class="ln"><span class="no">2</span><span><span class="t-tag">&lt;html</span> <span class="t-str">lang="ar"</span> <span class="t-str">dir="rtl"</span><span class="t-tag">&gt;</span></span></div>
+            <div class="ln"><span class="no">3</span><span>  <span class="t-tag">&lt;h1</span> <span class="t-str">class="hero"</span><span class="t-tag">&gt;</span>مرحبًا بك<span class="t-tag">&lt;/h1&gt;</span></span></div>
+            <div class="ln"><span class="no">4</span><span><span class="crt"></span></span></div>
+          </div>
+          <div class="m-prev">
+            <div class="m-prev-h"><span>المعاينة</span><span>⟳ ✕</span></div>
+            <div class="m-prev-body">
+              <div class="m-hero">مرحبًا <span class="ac">بالمطور</span></div>
+              <div class="m-sub">معاينة مباشرة لمشروعك</div>
+              <div class="m-chiprow">
+                <span class="m-chip acc">تشغيل</span>
+                <span class="m-chip">إعادة تعيين</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-console">
+          <div>&gt; console: ready in 12ms</div>
+          <div class="warn">&gt; ⚠ تحذير: ملف غير محفوظ</div>
+        </div>
+        <div class="m-status">
+          <span class="dot"></span><span>index.html</span><span>HTML</span><span>Ln 4, Col 21</span>
+          <span class="ar">● حفظ تلقائي</span><span class="ar">متصل</span>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <span class="sw" style="background:#0f1115" title="خلفية"></span>
+        <span class="sw" style="background:#151920" title="لوحة"></span>
+        <span class="sw" style="background:#272e38" title="حدود"></span>
+        <span class="sw" style="background:#d4dce5" title="نص"></span>
+        <span class="sw" style="background:#4ade80" title="لون التشديد"></span>
+        <span class="sw" style="background:#12161c" title="شريط الحالة"></span>
+      </div>
+      <div class="lg"><span><b>التشديد:</b> أخضر طرفية</span><span><b>أنصاف الأقطار:</b> 2px حاد</span><span><b>الكثافة:</b> عالية</span></div>
+      <p class="card-desc">طابع طرفي صرف: خلفية فحمية صامتة، حواف حادة 2px، لون أخضر واحد فقط للتشديد ومؤشر الكتابة. أبعد ما يكون عن «المظهر اللطيف» — أدوات العمل الصافية لمن يريد التركيز بلا زخرفة.</p>
+      <div class="card-specs"><span class="spec">تباين عالٍ</span><span class="spec">خط أحادي المسافات</span><span class="spec">بلا ظلال ثقيلة</span></div>
+      <div class="card-act">
+        <button class="btn-pick" type="button">اختر هذا</button>
+        <span class="picked-note">اكتب في الشات: <b>اختر رقم 2</b></span>
+      </div>
+    </article>
+
+    <!-- ============ 3 — أزرق عميق ناعم ============ -->
+    <article class="card" data-n="3">
+      <div class="card-head">
+        <span class="num">3</span>
+        <h2>أزرق عميق ناعم</h2>
+        <span class="tag">داكن · شخصية ملونة</span>
+      </div>
+
+      <div class="mock d3" aria-hidden="true">
+        <div class="m-top">
+          <span class="m-brand">⚡ kingCode</span>
+          <span class="m-tabs">
+            <span class="m-tab on">index.html</span>
+            <span class="m-tab">style.css</span>
+            <span class="m-tab">app.js</span>
+          </span>
+          <span class="m-tools">⊞ ⌘ ◌</span>
+        </div>
+        <div class="m-body">
+          <div class="m-side">
+            <div class="m-side-h">المشروع</div>
+            <div class="m-file on"><span class="ico">▤</span>index.html</div>
+            <div class="m-file"><span class="ico">◧</span>style.css</div>
+            <div class="m-file"><span class="ico">◨</span>app.js</div>
+            <div class="m-file"><span class="ico">≡</span>README.md</div>
+          </div>
+          <div class="m-ed">
+            <div class="ln"><span class="no">1</span><span><span class="t-tag">&lt;!DOCTYPE html&gt;</span></span></div>
+            <div class="ln"><span class="no">2</span><span><span class="t-tag">&lt;html</span> <span class="t-str">lang="ar"</span> <span class="t-str">dir="rtl"</span><span class="t-tag">&gt;</span></span></div>
+            <div class="ln"><span class="no">3</span><span>  <span class="t-tag">&lt;h1</span> <span class="t-str">class="hero"</span><span class="t-tag">&gt;</span>مرحبًا بك<span class="t-tag">&lt;/h1&gt;</span></span></div>
+            <div class="ln"><span class="no">4</span><span><span class="crt"></span></span></div>
+          </div>
+          <div class="m-prev">
+            <div class="m-prev-h"><span>المعاينة</span><span>⟳ ✕</span></div>
+            <div class="m-prev-body">
+              <div class="m-hero">مرحبًا <span class="ac">بالمطور</span></div>
+              <div class="m-sub">معاينة مباشرة لمشروعك</div>
+              <div class="m-chiprow">
+                <span class="m-chip acc">تشغيل</span>
+                <span class="m-chip">إعادة تعيين</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-console">
+          <div>&gt; console: ready in 12ms</div>
+          <div class="warn">&gt; ⚠ تحذير: ملف غير محفوظ</div>
+        </div>
+        <div class="m-status">
+          <span class="dot"></span><span>index.html</span><span>HTML</span><span>Ln 4, Col 21</span>
+          <span class="ar">● حفظ تلقائي</span><span class="ar">متصل</span>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <span class="sw" style="background:#0b1522" title="خلفية"></span>
+        <span class="sw" style="background:#111f30" title="لوحة"></span>
+        <span class="sw" style="background:#1e3044" title="حدود"></span>
+        <span class="sw" style="background:#dce8f4" title="نص"></span>
+        <span class="sw" style="background:#4da3ff" title="لون التشديد"></span>
+        <span class="sw" style="background:#12253a" title="شريط الحالة"></span>
+      </div>
+      <div class="lg"><span><b>التشديد:</b> أزرق سماوي</span><span><b>أنصاف الأقطار:</b> 12px ناعم</span><span><b>الكثافة:</b> مريحة</span></div>
+      <p class="card-desc">هوية ملونة غامقة بثقة: كل الأُسطح داخل عائلة أزرق عميق (بلا رمادي محايد)، حواف ناعمة 12px، ونبض أزرق سماوي للتشديد والتركيز. الأقرب لروح المحرر الآن لكن بترتيب توكنات يمنع تقتير الألوان.</p>
+      <div class="card-specs"><span class="spec">عائلة لون واحدة</span><span class="spec">تباين محكم</span><span class="spec">أناقة عصرية</span></div>
+      <div class="card-act">
+        <button class="btn-pick" type="button">اختر هذا</button>
+        <span class="picked-note">اكتب في الشات: <b>اختر رقم 3</b></span>
+      </div>
+    </article>
+
+    <!-- ============ 4 — فحمي دافئ ============ -->
+    <article class="card" data-n="4">
+      <div class="card-head">
+        <span class="num">4</span>
+        <h2>فحمي دافئ</h2>
+        <span class="tag">داكن · إيحاء كلاسيكي</span>
+      </div>
+
+      <div class="mock d4" aria-hidden="true">
+        <div class="m-top">
+          <span class="m-brand">⚡ kingCode</span>
+          <span class="m-tabs">
+            <span class="m-tab on">index.html</span>
+            <span class="m-tab">style.css</span>
+            <span class="m-tab">app.js</span>
+          </span>
+          <span class="m-tools">⊞ ⌘ ◌</span>
+        </div>
+        <div class="m-body">
+          <div class="m-side">
+            <div class="m-side-h">المشروع</div>
+            <div class="m-file on"><span class="ico">▤</span>index.html</div>
+            <div class="m-file"><span class="ico">◧</span>style.css</div>
+            <div class="m-file"><span class="ico">◨</span>app.js</div>
+            <div class="m-file"><span class="ico">≡</span>README.md</div>
+          </div>
+          <div class="m-ed">
+            <div class="ln"><span class="no">1</span><span><span class="t-tag">&lt;!DOCTYPE html&gt;</span></span></div>
+            <div class="ln"><span class="no">2</span><span><span class="t-tag">&lt;html</span> <span class="t-str">lang="ar"</span> <span class="t-str">dir="rtl"</span><span class="t-tag">&gt;</span></span></div>
+            <div class="ln"><span class="no">3</span><span>  <span class="t-tag">&lt;h1</span> <span class="t-str">class="hero"</span><span class="t-tag">&gt;</span>مرحبًا بك<span class="t-tag">&lt;/h1&gt;</span></span></div>
+            <div class="ln"><span class="no">4</span><span><span class="crt"></span></span></div>
+          </div>
+          <div class="m-prev">
+            <div class="m-prev-h"><span>المعاينة</span><span>⟳ ✕</span></div>
+            <div class="m-prev-body">
+              <div class="m-hero">مرحبًا <span class="ac">بالمطور</span></div>
+              <div class="m-sub">معاينة مباشرة لمشروعك</div>
+              <div class="m-chiprow">
+                <span class="m-chip acc">تشغيل</span>
+                <span class="m-chip">إعادة تعيين</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-console">
+          <div>&gt; console: ready in 12ms</div>
+          <div class="warn">&gt; ⚠ تحذير: ملف غير محفوظ</div>
+        </div>
+        <div class="m-status">
+          <span class="dot"></span><span>index.html</span><span>HTML</span><span>Ln 4, Col 21</span>
+          <span class="ar">● حفظ تلقائي</span><span class="ar">متصل</span>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <span class="sw" style="background:#171310" title="خلفية"></span>
+        <span class="sw" style="background:#201a16" title="لوحة"></span>
+        <span class="sw" style="background:#332a24" title="حدود"></span>
+        <span class="sw" style="background:#ecdfcf" title="نص"></span>
+        <span class="sw" style="background:#e0a458" title="لون التشديد"></span>
+        <span class="sw" style="background:#241c16" title="شريط الحالة"></span>
+      </div>
+      <div class="lg"><span><b>التشديد:</b> عنبري</span><span><b>أنصاف الأقطار:</b> 4px متفتح</span><span><b>الكثافة:</b> مريحة</span></div>
+      <p class="card-desc">داكن بروح قديمة دافئة: فحمي مائل للبني، نص كريمي، ولمسة عنبرية واحدة تعطي شخصية «دفتر شقيق». التناقض بينه وبين الاتجاهين الداكنين الآخرين هو الدفء — لا أزرق ولا أخضر إطلاقًا.</p>
+      <div class="card-specs"><span class="spec">مثالي لليالي</span><span class="spec">دافئ بلا حرارة</span><span class="spec">بلا بنفسجية</span></div>
+      <div class="card-act">
+        <button class="btn-pick" type="button">اختر هذا</button>
+        <span class="picked-note">اكتب في الشات: <b>اختر رقم 4</b></span>
+      </div>
+    </article>
+
+  </main>
+
+  <!-- ---------- خطة الصلاح التي ستُنفّذ بعد الاختيار ---------- -->
+  <section class="plan">
+    <h2>ملاحظات المراجعة — تُنفَّذ بعد اختيارك مباشرة</h2>
+    <ul>
+      <li><b>زر ☰ العائم (edge-toggle):</b> القاعدة الأساسية لا تُخفيه — يظهر بالخطأ على سطح المكتب (≥1024px). الإصلاح: <code>display:none</code> افتراضًا + إظهار تحت 1024px فقط.</li>
+      <li><b>شريط الحالة بتدرّج جاهز:</b> التدرج <code>linear-gradient</code> الأزرق باهت أمام المشهد الداكن يكسر الوحدة — يُستبدل بلون صلب من لوحة الاتجاه المختار.</li>
+      <li><b>توكنات موحّدة:</b> مسافات على مقياس 4px ثابت (4/8/12/16/24)، أنصاف أقطار موثقة (wedge/chip/pane)، ألوان دلالية للخطر/النجاح/التحذير بدل اللون المطلق المخلّ.</li>
+      <li><b>طباقة المحرر والألواح:</b> الألواح متقاربة اللون حاليًا؛ سيُعاد تدرّج الأسطح (خلفية/لوحة/محرر) بثلاث درجات واضحة لكل اتجاه.</li>
+      <li><b>المعاينة الفارغة:</b> حالة «مرحبًا» مبنية من الاتجاه المختار (أيقونة، شرح من سطرويّن، زرّان: تشغيل/ملف جديد) بدل الإطار الفارغ الظاهر على سطح المكتب.</li>
+      <li><b>الطباعة والمسافات:</b> مقياس أحجام خط ثابت (11.5/12/13/14/16/18px) بدل الأحجام العشوائية، تباعد أسطر متسق، ومسافات عناوين محسوبة.</li>
+    </ul>
+  </section>
+
+  <footer class="note">هذه الموكات تزيينية فقط (HTML/CSS ثابت — دون JavaScript تشغيلي) ومصوّرة كمقياس مصغّر للنسب لا للأحجام الفعلية.</footer>
+</div>
+
+<!-- شريط تأكيد الاختيار -->
+<div class="picked-bar" id="picked-bar" role="status" aria-live="polite">
+  <span>فهمت — اخترت:</span><b id="picked-name"></b>
+  <span class="copy" id="picked-cmd"></span>
+  <span>اكتبها الآن في الشات لأبدأ التنفيذ.</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var names = { 1: 'نهار رمادي هادئ', 2: 'طرفية أحادية', 3: 'أزرق عميق ناعم', 4: 'فحمي دافئ' };
+  var cards = document.querySelectorAll('.card');
+  var bar = document.getElementById('picked-bar');
+  var nameEl = document.getElementById('picked-name');
+  var cmdEl = document.getElementById('picked-cmd');
+
+  function pick(n) {
+    if (!names[n]) return;
+    cards.forEach(function (c) {
+      var on = c.getAttribute('data-n') === String(n);
+      c.classList.toggle('picked', on);
+      if (on) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    nameEl.textContent = 'رقم ' + n + ' — ' + names[n];
+    cmdEl.textContent = 'اختر رقم ' + n;
+    bar.classList.add('show');
+  }
+
+  cards.forEach(function (card) {
+    card.querySelector('.btn-pick').addEventListener('click', function (e) {
+      e.stopPropagation();
+      pick(parseInt(card.getAttribute('data-n'), 10));
+    });
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    var k = e.key;
+    if (k >= '1' && k <= '4') pick(parseInt(k, 10));
+  });
+})();
+</script>
+</body>
+</html>

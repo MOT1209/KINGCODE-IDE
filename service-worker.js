@@ -1,0 +1,162 @@
+/* =========================================================
+ * kingCode — service-worker.js
+ * عمل دون إنترنت: Cache-First للأصول + Network-First للمستندات
+ * ========================================================= */
+'use strict';
+
+const VERSION = 'kingcode-v1.0.2';
+const CACHE_NAME = 'kingcode-cache-' + VERSION;
+
+/** قائمة أصول kingCode (تُخزَّن عند التثبيت) */
+const ASSETS = [
+  /* الجذر والوثيقة */
+  './',
+  'index.html',
+  'manifest.json',
+
+  /* الأيقونات */
+  'icons/icon.svg',
+  'icons/icon-180.png',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-192.png',
+  'icons/icon-maskable-512.png',
+
+  /* الأنماط */
+  'css/main.css',
+  'css/components.css',
+
+  /* وحدات kingCode */
+  'js/config.js',
+  'js/utils.js',
+  'js/state.js',
+  'js/editor.js',
+  'js/files.js',
+  'js/list.js',
+  'js/tabs.js',
+  'js/preview.js',
+  'js/ui.js',
+  'js/app.js',
+
+  /* CodeMirror محليًا (لا CDN وقت التشغيل) */
+  'vendor/codemirror/codemirror.min.css',
+  'vendor/codemirror/codemirror.min.js',
+  'vendor/codemirror/theme/ayu-mirage.min.css',
+  'vendor/codemirror/theme/dracula.min.css',
+  'vendor/codemirror/theme/material-darker.min.css',
+  'vendor/codemirror/theme/monokai.min.css',
+  'vendor/codemirror/theme/nord.min.css',
+  'vendor/codemirror/theme/base16-dark.min.css',
+  'vendor/codemirror/theme/eclipse.min.css',
+  'vendor/codemirror/mode/xml/xml.min.js',
+  'vendor/codemirror/mode/javascript/javascript.min.js',
+  'vendor/codemirror/mode/css/css.min.js',
+  'vendor/codemirror/mode/htmlmixed/htmlmixed.min.js',
+  'vendor/codemirror/mode/markdown/markdown.min.js',
+  'vendor/codemirror/mode/python/python.min.js',
+  'vendor/codemirror/mode/sql/sql.min.js',
+  'vendor/codemirror/mode/yaml/yaml.min.js',
+  'vendor/codemirror/addon/dialog/dialog.min.js',
+  'vendor/codemirror/addon/dialog/dialog.min.css',
+  'vendor/codemirror/addon/search/searchcursor.min.js',
+  'vendor/codemirror/addon/search/search.min.js',
+  'vendor/codemirror/addon/search/jump-to-line.min.js',
+  'vendor/codemirror/addon/comment/comment.min.js',
+  'vendor/codemirror/addon/edit/closebrackets.min.js',
+  'vendor/codemirror/addon/edit/closetag.min.js',
+  'vendor/codemirror/addon/edit/matchbrackets.min.js',
+  'vendor/codemirror/addon/selection/active-line.min.js',
+  'vendor/codemirror/addon/hint/show-hint.min.js',
+  'vendor/codemirror/addon/hint/show-hint.min.css',
+  'vendor/codemirror/addon/hint/xml-hint.min.js',
+  'vendor/codemirror/addon/hint/html-hint.min.js',
+  'vendor/codemirror/addon/hint/css-hint.min.js',
+  'vendor/codemirror/addon/hint/javascript-hint.min.js'
+];
+
+/* ---------- التثبيت: تهيئة الذاكرة المؤقتة ---------- */
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
+});
+
+/* ---------- التفعيل: تنظيف النسخ القديمة ---------- */
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+/* ---------- مساعدة: تحديث خلفي للأصل ---------- */
+function backgroundUpdate(request, cache) {
+  return fetch(request)
+    .then(res => {
+      if (res && res.status === 200) {
+        return cache.put(request, res.clone());
+      }
+    })
+    .catch(() => { /* الأوفلاين: نتجاهل بصمت */ });
+}
+
+/* ---------- الاعتراض على الطلبات ---------- */
+self.addEventListener('fetch', event => {
+  const req = event.request;
+
+  /* GET فقط */
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  /* المستندات: شبكة أولًا (تحديثات فورية) ثم الذاكرة (دون إنترنت) */
+  if (req.mode === 'navigate' || (req.destination && req.destination === 'document')) {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          if (res && res.status === 200 && url.origin === location.origin) {
+            event.waitUntil(caches.open(CACHE_NAME).then(cache => {
+              cache.put(req, res.clone());
+            }));
+          }
+          return res;
+        })
+        .catch(() => caches.match('index.html').then(hit => hit ||
+          new Response('<h1 style="font-family:sans-serif;padding:24px">لا يوجد اتصال ⚡</h1>',
+          { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+        ))
+    );
+    return;
+  }
+
+  /* الأصول الأخرى: الأخير المؤقت أولًا + تحديث خلفي */
+  event.respondWith(
+    caches.open(CACHE_NAME).then(cache =>
+      cache.match(req).then(cached => {
+        if (cached) {
+          event.waitUntil(backgroundUpdate(req, cache));
+          return cached;
+        }
+        return fetch(req).then(res => {
+          if (res && res.status === 200 && res.type === 'basic') {
+            cache.put(req, res.clone());
+          }
+          return res;
+        });
+      })
+    )
+  );
+});
+
+/* ---------- تعليمات من الصفحة ---------- */
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
