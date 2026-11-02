@@ -13,7 +13,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "node tools/server.js"
+    "dev": "node tools/server.js",
+    "test": "node tools/ci-smoke.js"
   },
   "keywords": [
     "editor",

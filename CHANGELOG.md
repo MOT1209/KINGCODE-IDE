@@ -8,6 +8,7 @@ This document records all notable changes to the project (semver, Keep a Changel
 ### Added
 
 - **package.json (صفر تبعيات)** — يفتح `npm run dev` كمدخل رسمي مكافئ لـ `node tools/server.js`، مع حقول `license: MIT` و`engines: node>=18` و`repository`. لا يجلب أي حزمة — القاعدة «صفر اعتماديات» في plan.md مُصانة حرفيًا.
+- **CI + مجموعة فحص صفر-تبعيات (`tools/ci-smoke.js` → `npm test`)** — 16 حارسًا آليًا ضد انحدارات الموثقة في `docs/audit/`: انهيار السيرفر (CB-02)، عبور الجذر وتوراكل الوجود (CB-04)، CORS العام (SC-08)، MIME (SC-09)، وجود CSP وساندبوكس ضيق (SC-04)، واتساق الإصدارات `config ↔ SW ↔ CHANGELOG` (CB-08 بوصفه حارسًا دائمًا). تشغيل محلي مؤكد: **16/16 PASS (2026-11-02)** + بوابة صياغة `node --check` على 12 ملفًا، وخطوة GitHub Actions (`.github/workflows/ci.yml`) لكل push وPR.
 
 ## [1.0.5] — 2026-11-02
 
