@@ -19,7 +19,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
-  '.json': 'application/manifest+json', /* PWA manifest */
+  '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -32,8 +32,9 @@ const MIME = {
 function send(res, code, body, type) {
   res.writeHead(code, {
     'Content-Type': type,
-    'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*'
+    'Cache-Control': 'no-store'
+    /* CB-07: حُذف Access-Control-Allow-Origin: '*' - خادم محلي لا يحتاج فتح CORS لأي أصل،
+       والفتح العام يخوّل أي صفحة ويب خارجية قراءة ملفات الجهاز عبر هذا الخادم */
   });
   res.end(body);
 }
@@ -76,7 +77,11 @@ const server = http.createServer((req, res) => {
       send(res, 404, 'Not Found: ' + urlPath, 'text/plain');
       return;
     }
-    const type = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    let type = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    /* CB-05: manifest.json يستحق MIME الـ manifest الصحيح بينما باقي JSON عام */
+    if (path.basename(filePath).toLowerCase() === 'manifest.json') {
+      type = MIME['.webmanifest'];
+    }
     send(res, 200, data, type);
   });
 });
