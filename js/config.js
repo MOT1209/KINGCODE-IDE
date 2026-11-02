@@ -9,7 +9,7 @@
 const KC = {
 
   /** مصفوفة التوقيع — يُغيَّر عند تعديل بنية التخزين */
-  version: 'kingCode ' + '1.0.3',
+  version: 'kingCode ' + '1.0.4',
 
   /** مفتاح التخزين في localStorage */
   storageKey: 'kingcode:state:v1',
