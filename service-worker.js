@@ -74,12 +74,23 @@ const ASSETS = [
   'vendor/codemirror/addon/hint/javascript-hint.min.js'
 ];
 
-/* ---------- التثبيت: تهيئة الذاكرة المؤقتة ---------- */
+/* ---------- التثبيت: تهيئة الذاكرة المؤقتة ----------
+   إخفاق أصلٍ واحد لا يُعطّل الأوفلاين كلها: تُخزَّن الأصول كلٌّ على حدة
+   عبر allSettled بدل addAll الجماعي (فشله الكلّ)، والفائت يُسجَّل ويُتجاوز. */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+      .then(cache => Promise.allSettled(ASSETS.map(url =>
+        cache.add(url).catch(err => {
+          console.warn('[kingCode SW] asset not precached:', url, err && err.message);
+          throw url; /* أسباب الرفض هي مسارات الأصول لعدّها أدناه */
+        })
+      )))
+      .then(results => {
+        const missed = results.filter(r => r.status === 'rejected').map(r => String(r.reason));
+        if (missed.length) console.warn('[kingCode SW] precache incomplete — assets missing:', missed);
+        return self.skipWaiting();
+      })
   );
 });
 
