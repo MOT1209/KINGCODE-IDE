@@ -9,7 +9,7 @@
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
   "background_color": "#1a1a1a",
-  "theme_color": "#0098ff",
+  "theme_color": "#12253a",
   "lang": "ar",
   "dir": "rtl",
   "categories": ["developer", "productivity"],
