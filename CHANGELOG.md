@@ -3,6 +3,26 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.0.5] — 2026-11-02
+
+**الملخص (TL;DR):** إغلاق تسرب إصلاح CB-01 (زر الكونسول كان ما يزال مسجَّلًا مرتين فتُلغي النقرةُ نفسها)، وتثبيت SW مقاومٌ للأصل الفائت، وتوحيد لون الثيم، وتفريدٌ صحيح لأسماء الملفات عند ثلاث سجلاتٍ فأكثر.
+
+### Fixed
+
+- **Console toggle double-wiring (CB-01 residue)** — removed the inline `onclick="ui.toggleConsole()"` from `#btnConsoleToggle` (`index.html:103`); the `js/ui.js` listener is the single wiring channel now. Live evidence before: one click fired `invocations: 2` → self-cancelling toggle.
+- **Duplicate-name hydration collision** — `state.hydrate` appended a fixed `" (2)"` suffix, so a 3rd duplicate received the same name as the 2nd; a counter now climbs until the candidate is genuinely unused (`x (3).ext`, `x (4).ext`, …).
+- **Dead code** — removed the no-op `setTimeout(() => this.input, 50)` in the command-palette open path (`js/ui.js`).
+
+### Changed
+
+- **SW install resilience** — per-asset `Promise.allSettled` replaces all-or-nothing `cache.addAll`; one missing asset now logs `[kingCode SW] precache incomplete — assets missing: …` and offline precache continues for the rest.
+- **manifest `theme_color`** `#0098ff` → `#12253a` — unified with the app's dark chrome (`meta#metaTheme` default).
+- **README** — refresh SW version claim (`kingcode-v1.0.5`, 54 assets).
+
+### Meta
+
+- Version alignment (CB-08 rule): cache `kingcode-v1.0.5` ≡ app `1.0.5`.
+
 ## [1.0.4] — 2026-11-02
 
 **الملخص (TL;DR):** إصلاحات المرحلة الأولى المؤكدة حياً: انهيار الخادم، تسريب عبور الجذر، ربط الأزرار المزدوج، فشل تكرار الملف الثاني، ازدواج قاعدة CSS، تصحيح MIME وCORS، ومواءمة الإصدار مع ترقية كاش الخدمة إجبارياً بعد ثبوت تقديم نسخة متقادمة للملفات المصلحة.
