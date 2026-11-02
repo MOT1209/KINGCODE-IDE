@@ -94,7 +94,6 @@ const PALETTE = {
     this.input.value = '';
     this.refresh();
     UI.openModal('command-palette');
-    setTimeout(() => this.input, 50);
     setTimeout(() => this.input.focus(), 60);
   },
 
