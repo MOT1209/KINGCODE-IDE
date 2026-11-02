@@ -128,7 +128,17 @@ const STATE = {
       console.warn('[kingCode] duplicate file names in storage — normalizing…');
       const seen = new Set();
       files.forEach(f => {
-        if (seen.has(f.name)) f.name = U.safeFileName(f.name.replace(/(\.\w+)?$/, m => ' (2)' + m)) || U.uid();
+        if (seen.has(f.name)) {
+          /* لاحقة التفرد: العدد يتصاعد حتى اسم غير مُستخدَم فعلاً
+             (الصياغة القديمة كانت " (2)" ثابتة فتتصادم ثلاثة سجلات فأكثر) */
+          const m = f.name.match(/^(.+?)(\.\w+)?$/);
+          const base = m ? m[1] : String(f.name);
+          const ext = m && m[2] ? m[2] : '';
+          let n = 2;
+          let candidate = `${base} (${n})${ext}`;
+          while (seen.has(candidate)) { n += 1; candidate = `${base} (${n})${ext}`; }
+          f.name = U.safeFileName(candidate) || U.uid();
+        }
         seen.add(f.name);
       });
     }
