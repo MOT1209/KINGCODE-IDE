@@ -5,6 +5,8 @@
  * ========================================================= */
 'use strict';
 
+const IMPORT_BACKUP_KEY = 'kingcode:import-backup:v1';
+
 const FILES = {
 
   /** أسماء ملفات العرض UTC */
@@ -172,6 +174,56 @@ const FILES = {
     }
   },
 
+  /* ---------- نسخة احتياطية ما قبل الاستيراد (بند 1.6 من docs/audit/DEVELOPMENT_ROADMAP) ---------- */
+
+  /** يصوغ نسخة احتياطية من المشروع الحالي قبل استبداله بالاستيراد؛ يعيد true عند النجاح، وإلا يسجّل تحذيرًا في الكونسول (جهد وليس ضمانًا) */
+  _backupCurrent() {
+    try {
+      const files = STATE.files().map(f => ({ [f.name]: f.content }));
+      localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({ savedAt: Date.now(), files: Object.assign({}, ...files) }));
+      return true;
+    } catch (e) {
+      console.warn('[kingCode] import backup skipped:', (e && e.message) || e);
+      return false;
+    }
+  },
+
+  /** يطبّق ملفات مشروع جديد (نتيجة U.sanitizeFiles) بعد التنقية والتأكيد — مستخرج من importProject الأصلية */
+  _applyImported(files, note) {
+    STATE.data.files = files;
+    STATE.data.tabs = [files[0].id];
+    STATE.data.activeId = files[0].id;
+    STATE.data.dirty.clear();
+    STATE.persist();
+    EDITOR.docs.clear();
+    FILE_LIST.render();
+    TABS.render();
+    STATE.setActive(files[0].id);
+    PREVIEW.schedule(true);
+    UI.toast(note || ('تم استيراد ' + files.length + ' ملف 📥'));
+    STATE.emit('files:change', null);
+  },
+
+  /** استعادة آخر نسخة احتياطية (لوحة الأوامر: «ملفات ← استعادة نسخة ما قبل الاستيراد») */
+  restoreBackup() {
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(IMPORT_BACKUP_KEY) || 'null'); }
+    catch (e) { raw = null; }
+    if (!raw || !raw.files) { UI.toast('لا توجد نسخة احتياطية للمشروع السابق 🔒', 'warn'); return; }
+    const files = U.sanitizeFiles(raw.files);
+    if (!files) { UI.toast('النسخة الاحتياطية تالفة ولا يمكن استعادتها', 'error'); return; }
+    const when = raw.savedAt ? new Date(raw.savedAt).toLocaleString('ar') : '';
+    const before = STATE.files().length;
+    UI.confirm({
+      title: 'استعادة النسخة الاحتياطية؟',
+      message: 'سيستبدل المشروع الحالي (' + before + ' ملف) بالنسخة المحفوظة' + (when ? ' بتاريخ ' + when : '') + ' (' + files.length + ' ملف). المتابعة؟',
+      okLabel: 'استعادة'
+    }, ok => {
+      if (!ok) return;
+      this._applyImported(files, 'استُعيد المشروع السابق من النسخة الاحتياطية (' + files.length + ' ملف) ↩️');
+    });
+  },
+
   importProject() {
     const input = U.$('#import-json-input');
     input.onchange = async () => {
@@ -179,21 +231,22 @@ const FILES = {
       input.value = '';
       if (!file) return;
       try {
+        /* تنقية كاملة قبل اللمس بالحالة (SC-05): ملف تالف يُكتشف قبل أي استبدال */
         const parsed = JSON.parse(await U.readText(file));
         const files = U.sanitizeFiles(parsed);
         if (!files) throw new Error('بنية غير معروفة');
-        STATE.data.files = files;
-        STATE.data.tabs = [files[0].id];
-        STATE.data.activeId = files[0].id;
-        STATE.data.dirty.clear();
-        STATE.persist();
-        EDITOR.docs.clear();
-        FILE_LIST.render();
-        TABS.render();
-        STATE.setActive(files[0].id);
-        PREVIEW.schedule(true);
-        UI.toast('تم استيراد ' + files.length + ' ملف 📥');
-        STATE.emit('files:change', null);
+        /* بند 1.6: نسخة احتياطية قبل الاستبدال + تأكيد صريح — لا استبدال صامت */
+        const current = STATE.files().length;
+        const backupOk = this._backupCurrent();
+        UI.confirm({
+          title: 'استيراد مشروع؟',
+          message: 'سيستبدل المشروع الحالي (' + current + ' ملف) بمحتوى الملف المختار (' + files.length + ' ملف).'
+            + (backupOk ? ' حُفظت نسخة احتياطية، وتُستعاد من لوحة الأوامر «استعادة نسخة ما قبل الاستيراد».' : ' تعذّر حفظ نسخة احتياطية (المخزن ممتلئ؟) — لن تكون هناك فرصة رجوع!'),
+          danger: true,
+          okLabel: 'استيراد واستبدال'
+        }, ok => {
+          if (ok) this._applyImported(files);
+        });
       } catch (e) {
         UI.toast('فشل استيراد JSON: ' + e.message, 'error');
       }
