@@ -328,3 +328,16 @@ After fixes are implemented, verify:
 7. **Refine preview iframe sandbox** — remove `allow-modals`, `allow-popups` if not needed
 8. **Add import JSON schema validation** — prevents crashes from malformed imports
 9. **Restrict `postMessage` targetOrigin** — use `location.origin` instead of `'*'`
+
+---
+
+## حالة التنفيذ — المرحلة 1 (v1.0.4) — 2026-11-02
+
+| البند | الحالة | الكوميت | دليل حي |
+|------|--------|---------|---------|
+| SC-01a انهيار الترميز (DoS) | **مُصلَح** | `558845d` | `GET /foo%bar` → **400 Bad Request**؛ الطلب مباشرة بعده → **200** (كان الانهيار مؤكداً حياً ×2) |
+| SC-01 عبور الحدود | **مُصلَح** | `558845d` | `/..%2f..%2fREADME.md` → **403** (كان 200) ونسخة الملف المفقود → **403** (لم يبق أوراكل تسريب الوجود عبر 404)؛ إضافات تحصينية: رفض البايت الفارغ `\0` (400) ومقارنة الجذر مع فاصله النهائي لحصر الأشقاء مثل `kingcode-x` |
+| SC-08 CORS عالمي | **مُصلَح** | `5cea36c` | `curl -I` على `/index.html`: ترويسة `Access-Control-Allow-Origin` **غير موجودة** (كانت `*` على كل الاستجابات) |
+| SC-09 MIME الـ `.json` | **مُصلَح** | `5cea36c` | كل `.json` ← `application/json`، و`manifest.json` وحده يحفظ `application/manifest+json` (تحقق حي بالترويسة) |
+
+تبقى من البنود الحرجة: SC-03 (تخزين نصي) وSC-05 وSC-06 وSC-07 → ضمن **المرحلة 2**؛ أما SC-02/SC-04 فقد عولجا جزئياً في `1111bab` (CSP meta + تضييق sandbox) واستكمال تضييقهما مذكرون في المرحلة 2.
