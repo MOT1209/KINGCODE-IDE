@@ -57,8 +57,8 @@
         <div class="sidebar-header">
           <h3>المشروع</h3>
           <div class="sidebar-actions">
-            <button class="btn btn-icon" id="btnNewFile" title="ملف جديد" onclick="files.newFile()">+</button>
-            <button class="btn btn-icon" id="btnImportFile" title="استيراد ملفات" onclick="files.importFiles()">⭱</button>
+            <button class="btn btn-icon" id="btnNewFile" title="ملف جديد">+</button>
+            <button class="btn btn-icon" id="btnImportFile" title="استيراد ملفات">⭱</button>
           </div>
         </div>
         <ul class="file-list" id="file-list" role="listbox" aria-label="قائمة الملفات"></ul>
@@ -73,10 +73,10 @@
         <div class="tab-bar">
           <div class="tabs" id="tab-container" role="tablist" dir="ltr" aria-label="التبويبات المفتوحة"></div>
           <div class="tab-controls">
-            <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)" onclick="ui.openCommandPalette()">⌘</button>
-            <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة" onclick="ui.togglePreview()">◫</button>
-            <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح" onclick="ui.toggleUiTheme()">🌙</button>
-            <button class="btn btn-icon" id="btnSettings" title="الإعدادات" onclick="ui.openSettings()">⚙️</button>
+            <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)">⌘</button>
+            <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة">◫</button>
+            <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح">🌙</button>
+            <button class="btn btn-icon" id="btnSettings" title="الإعدادات">⚙️</button>
           </div>
         </div>
 
@@ -182,8 +182,8 @@
         <label class="switch-row"><input type="checkbox" id="auto-save" checked /> الحفظ التلقائي</label>
         <label class="switch-row"><input type="checkbox" id="auto-preview" checked /> المعاينة التلقائية</label>
         <div class="settings-row-actions">
-          <button class="btn" id="btnExport" onclick="files.exportProject()">📦 تصدير JSON</button>
-          <button class="btn" id="btnImport" onclick="files.importProject()">📥 استيراد JSON</button>
+          <button class="btn" id="btnExport">📦 تصدير JSON</button>
+          <button class="btn" id="btnImport">📥 استيراد JSON</button>
           <input type="file" id="import-json-input" accept=".json" hidden />
         </div>
         <div class="modal-actions">
