@@ -38,6 +38,8 @@ node tools/server.js
 # ثم افتح: http://localhost:8123/
 ```
 
+بديل مكافئ إن كنت تستخدم npm: `npm run dev` (خادم نفسه؛ `package.json` صفر تبعيات — لا يجلب أي حزمة).
+
 الخادم ثابت وصفر-تبعيات، ويقدّم `manifest.json` بـ MIME الصحيح `application/manifest+json`.
 
 ## 📱 التثبيت كتطبيق

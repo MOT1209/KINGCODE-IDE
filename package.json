@@ -1,0 +1,27 @@
+{
+  "name": "kingcode-ide",
+  "version": "1.0.5",
+  "description": "kingCode — a browser-based Arabic RTL code editor as a PWA. Vanilla ES6+, single CodeMirror vendored locally, zero npm dependencies.",
+  "private": true,
+  "license": "MIT",
+  "author": "MOT1209",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MOT1209/KINGCODE-IDE.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node tools/server.js"
+  },
+  "keywords": [
+    "editor",
+    "pwa",
+    "offline",
+    "rtl",
+    "arabic",
+    "vanilla-js",
+    "codemirror"
+  ]
+}

@@ -3,6 +3,12 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.0.6] — Unreleased
+
+### Added
+
+- **package.json (صفر تبعيات)** — يفتح `npm run dev` كمدخل رسمي مكافئ لـ `node tools/server.js`، مع حقول `license: MIT` و`engines: node>=18` و`repository`. لا يجلب أي حزمة — القاعدة «صفر اعتماديات» في plan.md مُصانة حرفيًا.
+
 ## [1.0.5] — 2026-11-02
 
 **الملخص (TL;DR):** إغلاق تسرب إصلاح CB-01 (زر الكونسول كان ما يزال مسجَّلًا مرتين فتُلغي النقرةُ نفسها)، وتثبيت SW مقاومٌ للأصل الفائت، وتوحيد لون الثيم، وتفريدٌ صحيح لأسماء الملفات عند ثلاث سجلاتٍ فأكثر.
