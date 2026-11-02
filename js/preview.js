@@ -132,7 +132,7 @@ const PREVIEW = {
     /* 1) حقن الكونسول أولاً */
     let out = this.injectConsoleBridge(content);
 
-      /* 2) CSS links */
+    /* 2) CSS links */
     out = out.replace(/<link\b[^>]*>/gi, tag => {
       if (!/rel=["']stylesheet["']/i.test(tag)) return tag;
       const href = (tag.match(/href=["']([^"']+)["']/i) || [])[1];
