@@ -117,7 +117,8 @@ const FILES = {
     if (!f) return;
     const ext = KC.extOf(f.name);
     const stem = ext ? f.name.slice(0, -(ext.length + 1)) : f.name;
-    this.create(stem + ' copy' + (ext ? '.' + ext : ''), f.content);
+    const name = this._uniqueName(stem + ' copy' + (ext ? '.' + ext : ''));
+    return this.create(name, f.content);
   },
 
   newFile() {
