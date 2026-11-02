@@ -66,6 +66,8 @@ const APP = {
 
     /* 9) Service Worker */
     APP.registerSw();
+    /* فحص التحديثات التلقائي بعد registration */
+    APP.checkForUpdate();
   },
 
   updateMetaTheme() {

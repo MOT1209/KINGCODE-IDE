@@ -35,7 +35,11 @@ const U = {
     return Math.min(max, Math.max(min, v));
   },
 
-  /* ---------- التخزين الآمن (localStorage مع عزل الأخطاء) ---------- */
+  /* ---------- التخزين الآمن (localStorage متزامن + عزل أخطاء) ----------
+ * ملاحظة: IndexedDB غير متزامن بطبيعته وبه مستهلكون متزامنون هنا
+ * (state.hydrate، TABS.open، EDITOR.change، ...). أي ترقية مستقبلية
+ * إلى IDB تتطلب جعل كل المستهلكين async أولاً؛ لا تُدمج IDB هنا دون ذلك.
+ */
 
   storage: {
     get(key, fallback = null) {
@@ -52,7 +56,12 @@ const U = {
         localStorage.setItem(key, JSON.stringify(value));
         return true;
       } catch (e) {
-        console.warn('[kingCode] storage write failed:', e);
+        /* quota exceeded أو وضع خاص: إخطار واحد غير متكرر */
+        if (!this._quotaWarned) {
+          this._quotaWarned = true;
+          try { UI.toast('مساحة التخزين ممتلئة — صدِّر المشروع لتفادي فقدان البيانات ⚠️', 'warn', 6000); }
+          catch (_) { console.warn('[kingCode] storage quota exceeded:', e); }
+        }
         return false;
       }
     },

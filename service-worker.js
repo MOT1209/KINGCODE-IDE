@@ -4,7 +4,7 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.0.2';
+const VERSION = 'kingcode-v1.0.3';
 const CACHE_NAME = 'kingcode-cache-' + VERSION;
 
 /** قائمة أصول kingCode (تُخزَّن عند التثبيت) */

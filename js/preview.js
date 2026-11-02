@@ -16,6 +16,8 @@ const PREVIEW = {
     window.addEventListener('message', e => {
       const d = e.data;
       if (!d || d.__kingcode !== true) return;
+      /* التحقق من دورة الرسالة: يجب أن تأتي من إطار المعاينة نفسه فقط */
+      if (this.frame && e.source !== this.frame.contentWindow) return;
       if (d.type === 'console') UI.consoleAppend(d.level, d.parts);
       else if (d.type === 'ready') { /* تعطل التعبئة هنا */ }
     });
@@ -130,13 +132,13 @@ const PREVIEW = {
     /* 1) حقن الكونسول أولاً */
     let out = this.injectConsoleBridge(content);
 
-    /* 2) CSS links */
+      /* 2) CSS links */
     out = out.replace(/<link\b[^>]*>/gi, tag => {
       if (!/rel=["']stylesheet["']/i.test(tag)) return tag;
       const href = (tag.match(/href=["']([^"']+)["']/i) || [])[1];
       const f = mapFor(href);
       return f
-        ? '<style data-kc-src="' + f.name + '">\n' + f.content.replace(/<\/style/gi, '<\\/style') + '\n</style>'
+        ? '<style data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/style/gi, '<\\/style') + '\n</style>'
         : tag;
     });
 
@@ -144,7 +146,7 @@ const PREVIEW = {
     out = out.replace(/<script\b[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (whole, src) => {
       const f = mapFor(src);
       if (!f) return whole;
-      return '<script data-kc-src="' + f.name + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n<\/script>';
+      return '<script data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n<\/script>';
     });
 
     /* 4) مضمنات style/script التي وصل بدون ملف داخلها تنكتب كما هي */

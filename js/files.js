@@ -99,6 +99,8 @@ const FILES = {
         }
       }
       STATE.persist();
+      /* تنظيف Doc من الذاكرة عند حذف الملف (منع memory leak) */
+      if (EDITOR.docs.has(id)) EDITOR.docs.delete(id);
       FILE_LIST.render();
       TABS.render();
       if (STATE.data.activeId) { EDITOR.open(STATE.data.activeId); }

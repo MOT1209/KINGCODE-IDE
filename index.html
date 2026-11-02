@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -6,6 +6,7 @@
   <meta name="description" content="kingCode — محرر أكواد احترافي يعمل في المتصفح ويُثبَّت كتطبيق على الهاتف والآيباد والحاسوب، ويشتغل دون إنترنت." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#12253a" id="metaTheme" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-src 'none';" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -108,7 +109,7 @@
               </span>
             </div>
             <div class="preview-body">
-              <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"
+              <iframe id="preview-frame" sandbox="allow-scripts allow-modals"
                       allowtransparency="true" title="معاينة المشروع"></iframe>
               <div class="preview-empty" id="previewWelcome" role="status" aria-label="لا توجد معاينة بعد">
                 <div class="pv-glyph">⚡</div>

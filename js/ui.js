@@ -288,9 +288,14 @@ const UI = {
         return;
       }
 
-      /* Alt+أسهم لتنقّل التبويبات خارج المحرر أيضًا */
-      if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); TABS.cycle(1); return; }
-      if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); TABS.cycle(-1); return; }
+      /* Alt+أسهم لتنقّل التبويبات خارج المحرر أيضًا (RTL-aware: يسار=التالي في RTL) */
+      if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        /* في RTL: ArrowLeft يتحرك للأمام (التالي)، ArrowRight للخلف (السابق) */
+        const dir = e.key === 'ArrowLeft' ? 1 : -1;
+        TABS.cycle(dir);
+        return;
+      }
 
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
