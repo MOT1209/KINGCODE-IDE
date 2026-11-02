@@ -39,12 +39,26 @@ function send(res, code, body, type) {
 }
 
 const server = http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  } catch {
+    /* CB-02: مسار مثل /% يرمي URIError ويقتل العملية؛ نقبلها بـ 400 بدلاً من الانهيار */
+    send(res, 400, 'Bad Request', 'text/plain');
+    return;
+  }
+  if (urlPath.includes('\0')) {
+    /* بايت فارغ يرفضه fs مع استثناء غير مُلتقط */
+    send(res, 400, 'Bad Request', 'text/plain');
+    return;
+  }
   if (urlPath === '/') urlPath = '/index.html';
 
-  /* منع عبور الجذر */
-  const filePath = path.join(ROOT, path.normalize(urlPath));
-  if (!filePath.startsWith(ROOT)) {
+  /* CB-04: منع عبور الجذر — نُحسم المسار أولاً ثم نقارن مع الجذر + فاصله النهائي؛
+     المطابقة بلا فاصل كانت ستجيزأشقاء مثل ROOT-x عبر startsWith(ROOT) */
+  const filePath = path.resolve(ROOT, '.' + urlPath);
+  const ROOT_WITH_SEP = ROOT.endsWith(path.sep) ? ROOT : ROOT + path.sep;
+  if (filePath !== ROOT && !filePath.startsWith(ROOT_WITH_SEP)) {
     send(res, 403, 'Forbidden', 'text/plain');
     return;
   }
