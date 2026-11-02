@@ -295,7 +295,7 @@ res.writeHead(code, {
 ## Low-Severity Security Findings
 
 - **Missing `referrer-policy` meta tag** — information leakage potential
-- **`editText` function referenced but not implemented** — potential dead code
+- **`editText` function referenced but not implemented** — CLOSED 2026-11-02 (false positive): no reference to `editText` exists in any code file at HEAD; mentioned only by the audit documents themselves
 - **`pref:sidebarOpen` recursion** — while primarily a bug (CB-01), also prevents pref preference persistence
 - **No rate limiting on storage operations** — could enable quota exhaustion DoS
 - **Console messages visible in devtools** — no production filtering

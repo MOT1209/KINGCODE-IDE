@@ -18,6 +18,7 @@ This document records all notable changes to the project (semver, Keep a Changel
 
 ### Changed
 
+- **نظافة المستودع** — نقل 14 لقطة اختبار إلى `docs/img/` ونقل `design-choices.html` إلى `docs/` (بلا أي مراجع كود)، وإغلاق CB-07 بوصفه إشارة قديمة (صفر مرجعيات كود عند HEAD — إغلاق YAGNI).
 - **رفعة الإصدار v1.0.6** — `KC.version` وكاش SW `kingcode-v1.0.6` و`package.json` دفعة واحدة في نفس الكوميت (قاعدة CB-08 الملزمة: كل تغيير أصل يقدَّم للمستخدم يرفع الكاش بنفس الكوميت — تعديل اليوم يمس `js/files.js` و`js/ui.js`).
 - **LICENSE (MIT)** — المستودع حصل على ملف الرخصة الرسمي المطابق لما يعلنه README، وأضاف README مدخل `npm run dev` وقسم «الجودة (CI)».
 

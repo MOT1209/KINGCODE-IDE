@@ -123,7 +123,7 @@ kingcode/
 - **Duplicate CSS class `.file-name`** — defined in both `css/main.css:146` and `css/components.css:112` with different styles
 - **`.json` MIME bug** — `MIME['.json'] = 'application/manifest+json'` serves EVERY json file as a web-app manifest type (live-confirmed header on `/manifest.json`; applies to any `.json` too)
 - **Cross-origin read:** every response carries `Access-Control-Allow-Origin: '*'` (`server.js:36`) — any website in the user's browser can read repo files while the dev server runs
-- **`editText` function missing** — referenced in comments but not implemented
+- **`editText` function missing** — CLOSED (2026-11-02, false positive): repo-wide search shows **zero references** to `editText` in any code file at HEAD; the only remaining mentions are the audit documents themselves. Nothing to add or remove (YAGNI closure)
 - **Storage quota** — no handling for quota exceeded errors; `localStorage` limits not enforced beyond `KC.limits.maxFiles`
 
 ---
@@ -138,7 +138,7 @@ kingcode/
 | CB-04 | **Traversal URL works only by accident** — `path.normalize` drops leading `..` after root anchor; path remaps inside ROOT instead of being rejected | **Medium** | `tools/server.js:46` | **Live**: `/..%2f..%2fREADME.md` → 200 (repo README served); `/..%2f..%2fmissing.md` → 404 (not 403) |
 | CB-05 | **`.json` MIME mis-map**: every `.json` served as `application/manifest+json` | **Low** | `tools/server.js:22` | **Live header**: `Content-Type: application/manifest+json` on `/manifest.json` (map entry applies to all `.json`) |
 | CB-06 | Duplicate `.file-name` CSS definitions with conflicting styles | **Medium** | `css/main.css:146`, `css/components.css:112` | Same class defined twice; last definition wins |
-| CB-07 | `editText` utility referenced but not defined | **Low** | `js/utils.js` | Function referenced in comments, missing |
+| CB-07 | `editText` utility referenced but not defined | **Low** | `js/utils.js` | **مغلق (false-positive) 2026-11-02 — صفر إشارات في أي ملف كود عند HEAD؛ الإشارات الوحيدة الباقية هي وثائق التدقيق ذاتها** |
 | CB-08 | `pref:sidebarOpen` recursion — **historical, fixed at HEAD** | Closed (historical) | `js/state.js` | Old `.playwright-mcp` logs showed `RangeError: Maximum call stack size exceeded`; **not reproduced** at HEAD — `UI.toggleSidebar()` ran clean (live) |
 
 ---
@@ -155,7 +155,7 @@ kingcode/
 | CB-04 اختراق الجذر | **مُصلَح** | `558845d` | `/..%2f..%2fREADME.md` → **403** (كان 200!) ونسخة الملف المفقود → **403** (كان 404 — لم يبق أوروراكل تسريب الوجود)؛ أصبحت المقارنة `resolve(ROOT, '.' + path)` مع فاصل الجذر النهائي فترفض الأشقاء (مثل `kingcode-x`) التي كانت تقبلها `startsWith(ROOT)` |
 | CB-05 MIME الـ `.json` | **مُصلَح** | `5cea36c` | `/manifest.json` → `application/manifest+json` بينما كل `.json` عام ← `application/json` |
 | CB-06 ازدواج `.file-name` | **مُصلَح** | `7161f50` | القاعدة الموحّدة في `components.css`: حسابياً mono + `11.5px` + `max-width: 460.8px` (**30vw** عند 1536px) و**140px** (**20vw** عند 700px — التجاوز الناعم نُقل إلى `components.css` لكي لا تطغى قاعدة التحميل الأحدث على `@media`) على `#statusFile` وقائمة الملفات معاً |
-| CB-07 `editText` المفقودة | مفتوح | — | خارج نطاق المرحلة 1 (بند Low) |
+| CB-07 `editText` المفقودة | مغلق (false-positive) | — | صفر إشارات في الكود عند HEAD (تحقيق 2026-11-02)؛ إغلاق YAGNI دون أي تغيير كود |
 | التسجيل config/SW | **مُصلَح** | `8d3f511` ثم `7fcd156` | انزياح الإصدارات عولج أولاً بمواءمتها عند `1.0.3`؛ ثم كشف دليل حي مشكلة أعمق (انظر أدناه) فصعد كلاهما إلى **`1.0.4`** |
 
 ### اكتشاف حي إضافي: تسليم متسخ عند تغيير الأصول دون ترقية كاش SW
@@ -254,7 +254,7 @@ kingcode/
 - [ ] Fix `pref:sidebarOpen` infinite recursion in `state.js` (CB-01)
 - [ ] Add try/catch around `decodeURIComponent` in `server.js` (CB-02)
 - [ ] Consolidate duplicate `.file-name` CSS rules (CB-03)
-- [ ] Add `editText` utility or remove references (CB-04)
+- [x] `editText`: zero references remain in code — closed as stale/false positive (2026-11-02)
 - [ ] Verify Service Worker update reliably clears old caches
 
 ### Phase 2 — Code Editor Modernization (Weeks 3-6)
