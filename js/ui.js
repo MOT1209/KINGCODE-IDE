@@ -39,6 +39,7 @@ Commands.add({ id: 'files.rename', label: 'إعادة تسمية الملف ال
 Commands.add({ id: 'files.download', label: 'تنزيل الملف الحالي', group: 'ملفات', run: () => FILES.download(STATE.data.activeId) });
 Commands.add({ id: 'files.exportHTML', label: 'تصدير المشروع كملف HTML مستقل', group: 'ملفات', run: () => FILES.exportProjectHTML() });
 Commands.add({ id: 'files.delete', label: 'حذف الملف الحالي', group: 'ملفات', run: () => FILES.remove(STATE.data.activeId) });
+Commands.add({ id: 'files.restoreBackup', label: 'استعادة نسخة ما قبل الاستيراد', group: 'ملفات', run: () => FILES.restoreBackup() });
 
 Commands.add({ id: 'preview.refresh', label: 'تحديث المعاينة', group: 'معاينة', hint: 'Ctrl+Enter', run: () => PREVIEW.refresh() });
 Commands.add({ id: 'preview.console.toggle', label: 'فتح/إخفاء الكونسول', group: 'معاينة', hint: 'Shift+Enter',
@@ -178,6 +179,8 @@ const UI = {
   _confirmCb: null,
   _promptCb: null,
   _focusBeforeModal: null,
+  _trapTarget: null,
+  _trapHandler: null,
   _swUpdate: null,
 
   init() {
@@ -332,8 +335,42 @@ const UI = {
     this._focusBeforeModal = document.activeElement;
     el.style.display = 'flex';
     el.setAttribute('aria-hidden', 'false');
+    /* الاحتواء: aria-modal=true مُعلن، فالعملية الإلزامية أن لا يهرب Tab إلى الخلفية */
+    this._trapFocus(el);
     const focusable = el.querySelector('input, button, select');
     if (focusable) setTimeout(() => focusable.focus(), 40);
+  },
+
+  _trapFocus(el) {
+    /* نظافة منتقلٍ سابق إن وُجد، ثم ربط قفل الجدولة داخل النافذة */
+    this._untrapFocus();
+    this._trapTarget = el;
+    this._trapHandler = e => {
+      if (e.key !== 'Tab') return;
+      const focusables = Array.from(el.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter(x => !x.closest('[hidden]'));
+      if (!focusables.length) { e.preventDefault(); return; }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = el.contains(active);
+      if (e.shiftKey) {
+        if (!inside || active === first) { e.preventDefault(); last.focus(); }
+      } else if (!inside || active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    el.addEventListener('keydown', this._trapHandler);
+  },
+
+  _untrapFocus() {
+    if (this._trapTarget && this._trapHandler) {
+      this._trapTarget.removeEventListener('keydown', this._trapHandler);
+    }
+    this._trapTarget = null;
+    this._trapHandler = null;
   },
 
   closeModal(id) {
@@ -341,6 +378,7 @@ const UI = {
     if (!el) return;
     el.style.display = 'none';
     el.setAttribute('aria-hidden', 'true');
+    if (this._trapTarget === el) this._untrapFocus();
     if (this._focusBeforeModal && this._focusBeforeModal.focus) {
       this._focusBeforeModal.focus();
       this._focusBeforeModal = null;

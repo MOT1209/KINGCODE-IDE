@@ -28,6 +28,7 @@ const FILE_LIST = {
       li.dataset.id = f.id;
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(f.id === STATE.data.activeId));
+      li.tabIndex = 0; /* قابل للتركيز: أسهم لوحة المفاتيح تصل القائمة (a11y) */
 
       const lang = KC.langFor(f.name);
 
@@ -97,5 +98,29 @@ document.addEventListener('DOMContentLoaded', () => {
       /* على الشاشات الصغيرة: نغلق الشريط الجانبي بعد الاختيار */
       if (window.matchMedia(KC.ui.mobileQuery).matches) UI.setSidebar(false);
     }
+  });
+
+  /* تنقل لوحة المفاتيح بين البنود (عمودي): ↑/↓ + Home/End، وEnter/Space يفتح */
+  list.addEventListener('keydown', e => {
+    /* أزرار الإجراءات داخل البند تُدار بنفسها (Enter يفعّلها، Space أيضًا) */
+    if (e.target.classList.contains('file-act')) return;
+    const items = Array.from(list.querySelectorAll('.file-item'));
+    if (!items.length) return;
+    const li = e.target.closest('.file-item');
+    const i = items.indexOf(li);
+
+    if ((e.key === 'Enter' || e.key === ' ') && li) {
+      e.preventDefault();
+      TABS.open(li.dataset.id, { activate: true });
+      if (window.matchMedia(KC.ui.mobileQuery).matches) UI.setSidebar(false);
+      return;
+    }
+
+    let next = null;
+    if (e.key === 'ArrowDown') next = items[(i + 1) % items.length];
+    else if (e.key === 'ArrowUp') next = items[(i - 1 + items.length) % items.length];
+    else if (e.key === 'Home') next = items[0];
+    else if (e.key === 'End') next = items[items.length - 1];
+    if (next) { e.preventDefault(); next.focus(); }
   });
 });
