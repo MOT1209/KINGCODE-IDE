@@ -3,6 +3,24 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.4.2] — 2026-11-03
+
+Cross-browser verification: the E2E suite now runs on **Chromium, Firefox and WebKit** in CI (`KC_BROWSER`, matrix job `e2e`).
+
+### Fixed
+
+- **IndexedDB connection ignored `versionchange`.** Another tab deleting or upgrading the database (clearing site data, a future schema change) was blocked for as long as an older tab kept its connection open; WebKit exposed it (deletes hung, a migration test failed). The connection is now closed on `versionchange` and reopened on the next save, which rewrites every file (the known-record set is reset). E2E `A-01: another tab deleting the database…`.
+- **Safari/WebKit showed `Script error. @ line 0` for runtime errors in the preview** (WebKit masks the message and line of uncaught errors in opaque-origin documents). The console bridge now says why details are missing and what to do (`console.log`, `try/catch`, or another browser) instead of printing a meaningless position; other browsers still show the real message and line.
+
+### Tests
+
+- `tools/e2e.js` runs against any engine (`KC_BROWSER=chromium|firefox|webkit`). Test-suite fixes found by the new engines (not product bugs): Firefox downloads `manifest.json` instead of navigating to it (tests now use a neutral same-origin page); WebKit reports the sandbox's blocked top-navigation attempt as a page error (expected, now filtered); a `waitConsole` helper reports the real console text when it times out.
+- CI on PR head `3e8ee1b` (GitHub Actions run 41683976425): `verify`, `lint`, `e2e (chromium)`, `e2e (firefox)`, `e2e (webkit)` all success — 48/48 in each browser. Earlier on the same PR: Firefox failed 3 tests (test-setup: manifest.json download), WebKit failed 4 (two migration tests from the unhandled `versionchange`, a harness page-error, and the masked error above) — all fixed. Unit 44 (core 32, preview 12), E2E 48.
+
+### Meta
+
+- Version 1.4.2 (`KC.version`, SW cache `kingcode-v1.4.2`, `package.json`).
+
 ## [1.4.1] — 2026-11-03
 
 ### Fixed

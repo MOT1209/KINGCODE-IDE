@@ -38,14 +38,18 @@ F-01…F-09, **F-14** (editor showed the old document after import), F-10…F-13
 | Secrets scan | no credentials (one `/etc/passwd` test fixture string) |
 | Deletions vs `45f7284` | none |
 
-## CI status
+## CI status (PR #4, cross-browser)
+
+- Head `3e8ee1b` (v1.4.2): `verify` ✅ `lint` ✅ `e2e (chromium)` ✅ `e2e (firefox)` ✅ `e2e (webkit)` ✅ — 48/48 each. First matrix run found 7 failures across Firefox/WebKit (test setup issues + one real robustness bug + one real WebKit difference), all fixed.
+
+## CI status (earlier PRs)
 
 - PR #1 head `f4f79ee`: `verify` + `e2e` success. PR #2 head `0a2e75f`: `verify` + `e2e` success.
 - PR #3 head `33f56f3`: `verify` ✅ `lint` ✅ `e2e` ❌ (45/46: legacy-migration test; real bug F-15 — partial crash journal merged into a migrated project; local runs had passed because the race did not occur). Fixed in 1.4.1. **PR #3 head `6b229f8` (v1.4.1): `verify` ✅ `lint` ✅ `e2e` ✅ (47/47) on GitHub Actions** (run 41637991223). Documentation-only commits after it re-trigger CI; those runs are not recorded here.
 
 ## Remaining problems / limitations
 
-See `FINAL_ENGINEERING_REPORT.md` §12. Highest priority: nothing was tested in Firefox, Safari, Android WebView or on real devices; no terminal/Git/AI/accounts/sync exist; ES modules and CodeMirror 6 deferred.
+See `FINAL_ENGINEERING_REPORT.md` §12. Highest priority: real Safari/iOS, Android WebView and installed-app mode are untested (Firefox and WebKit run in CI since 1.4.2); no terminal/Git/AI/accounts/sync exist; ES modules and CodeMirror 6 deferred.
 
 ## Next actions
 

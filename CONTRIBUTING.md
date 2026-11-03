@@ -55,7 +55,7 @@ Verify on desktop, tablet and phone sizes, in dark and light themes (the E2E sui
 | Import/export/restore | valid project round-trips (including folders); malformed JSON fails with a clear message |
 | Offline + update | works after disconnecting; the "update ready" flow does not interrupt editing |
 | Keyboard only | tree navigation, palette, `Esc` leaves the editor, no focus trap |
-| Other browsers | Firefox and Safari/iOS are **not** covered by automation — test manually when touching storage, `sandbox.html` or the service worker |
+| Other browsers | CI runs the E2E suite on Chromium, Firefox and WebKit (Playwright builds, Linux). Real Safari/iOS, Android WebView and installed-app mode are **not** covered — test manually when touching storage, `sandbox.html` or the service worker. Run one engine locally with `KC_BROWSER=firefox npm run test:e2e` (needs `npx playwright install firefox`) |
 
 ## 🐞 Reporting bugs and requesting features
 

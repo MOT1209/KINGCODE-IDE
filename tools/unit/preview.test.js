@@ -97,3 +97,10 @@ test('basename fallback keeps old flat-project behavior', () => {
   const files = [F('index.html', '<script src="app.js"></script>'), F('src/app.js', 'var x=1')];
   assert.match(build(files, 'index.html'), /data-kc-src="src\/app.js"/);
 });
+
+test('bridge: masked "Script error." (WebKit) is explained instead of printing a meaningless line number', () => {
+  const out = build([F('index.html', '<p>x</p>')], 'index.html');
+  assert.match(out, /script error/i, 'bridge lacks the masked-error branch');
+  assert.match(out, /يخفي تفاصيل الخطأ/, 'no explanatory hint');
+  assert.match(out, /@ سطر/, 'normal errors must still report the line');
+});

@@ -11,9 +11,14 @@ const os = require('os');
 const { spawn } = require('child_process');
 const net = require('net');
 
-let chromium;
-try { ({ chromium } = require('playwright')); }
-catch (e) { console.error('playwright غير مثبّت: شغّل `npm i` ثم `npx playwright install chromium`'); process.exit(2); }
+/* المتصفح: KC_BROWSER=chromium (افتراضي) | firefox | webkit */
+const BROWSER_NAME = process.env.KC_BROWSER || 'chromium';
+let engine;
+try {
+  const pw = require('playwright');
+  engine = pw[BROWSER_NAME];
+  if (!engine) { console.error('KC_BROWSER غير معروف: ' + BROWSER_NAME + ' (chromium | firefox | webkit)'); process.exit(2); }
+} catch (e) { console.error('playwright غير مثبّت: شغّل `npm i` ثم `npx playwright install ' + BROWSER_NAME + '`'); process.exit(2); }
 
 const ROOT = path.join(__dirname, '..');
 const results = [];
@@ -51,11 +56,11 @@ function copyApp(dest) {
 }
 
 async function test(name, fn, browser, base, opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, hasTouch: !!opts.touch, isMobile: !!opts.mobile, acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, hasTouch: !!opts.touch, ...(BROWSER_NAME === 'firefox' ? {} : { isMobile: !!opts.mobile }), acceptDownloads: true }); /* Firefox لا يدعم isMobile */
   if (opts.init) await ctx.addInitScript(opts.init);
   const page = await ctx.newPage();
   const pageErrors = [];
-  page.on('pageerror', e => { if (!/Error: boom/.test(String(e))) pageErrors.push(String(e)); }); /* boom = خطأ مقصود داخل المعاينة */
+  page.on('pageerror', e => { if (!/Error: boom|Unsafe JavaScript attempt to initiate navigation/.test(String(e))) pageErrors.push(String(e)); }); /* الثانية: WebKit يبلّغ محاولة التنقل المحجوبة كخطأ صفحة — دليل أن الـ sandbox يعمل */ /* boom = خطأ مقصود داخل المعاينة */
   try {
     await page.goto(base + '/');
     await page.waitForFunction(() => window.KINGCODE_READY);
@@ -68,6 +73,26 @@ async function test(name, fn, browser, base, opts = {}) {
 }
 
 function assert(c, msg) { if (!c) throw new Error(msg); }
+/** ينتظر ظهور نص في كونسول المعاينة؛ عند انتهاء المهلة يذكر محتوى الكونسول الفعلي (تشخيص بين المتصفحات) */
+async function waitConsole(page, re, ms = 6000) {
+  try {
+    await page.waitForFunction(src => new RegExp(src).test(document.querySelector('#console-output').textContent), re.source, { timeout: ms });
+  } catch (e) {
+    const text = await page.evaluate(() => document.querySelector('#console-output').textContent);
+    throw new Error('console never matched /' + re.source + '/ — console was: ' + JSON.stringify(text.slice(0, 400)), { cause: e });
+  }
+}
+/** يحذف قاعدة IndexedDB من صفحة أخرى بنفس الأصل وينتظر نجاح الحذف (تغلق الصفحة المفتوحة اتصالها عند versionchange) */
+async function deleteDbFrom(page) {
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('deleteDatabase did not complete in 5 s (blocked by an open connection?)')), 5000);
+    const r = indexedDB.deleteDatabase('kingcode');
+    r.onsuccess = () => { clearTimeout(t); resolve(); };
+    r.onerror = () => { clearTimeout(t); reject(r.error); };
+  }));
+}
+/** صفحة ثابتة من نفس الأصل لا تفتح قاعدة البيانات ولا تُنزَّل (manifest.json يُنزَّل في Firefox) */
+const NEUTRAL = '/sandbox.html';
 const typeAll = (page, txt) => page.evaluate(t => { const cm = kc.EDITOR.cm; cm.replaceRange(t, { line: 0, ch: 0 }, { line: cm.lastLine(), ch: 1e9 }); }, txt);
 /* المحتوى المحفوظ فعليًا في IndexedDB للملف رقم i (بترتيب المشروع) */
 const stored = (page, i = 0) => page.evaluate(async i => {
@@ -90,7 +115,8 @@ async function importJson(page, obj) {
   const port = await freePort();
   const server = await startServer(port);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch();
+  console.log('Browser: ' + BROWSER_NAME);
+  const browser = await engine.launch();
   try {
     /* ---- سير العمل الأساسي ---- */
     await test('WF: launch + default project + edit + reload keeps saved state', async ({ page }) => {
@@ -110,7 +136,10 @@ async function importJson(page, obj) {
 
     await test('WF: preview renders and shows runtime errors in console', async ({ page }) => {
       await typeAll(page, '<script>console.log("hi-preview");throw new Error("boom")</script>');
-      await page.waitForFunction(() => /hi-preview/.test(document.querySelector('#console-output').textContent) && /boom/.test(document.querySelector('#console-output').textContent), null, { timeout: 5000 });
+      await waitConsole(page, /hi-preview/);
+      /* Chromium/Firefox يعطيان رسالة الخطأ؛ WebKit يخفيها («Script error.») فيُشرَح السبب للمستخدم (انظر الجسر) */
+      await waitConsole(page, BROWSER_NAME === 'webkit' ? /Script error/ : /boom/);
+      assert((await page.$$('#console-output .lvl-error')).length >= 1, 'no error-level row in the console');
     }, browser, base);
 
     await test('WF: responsive — no horizontal overflow at 390/820/1366', async ({ page }) => {
@@ -216,15 +245,27 @@ async function importJson(page, obj) {
       assert(puts === 1, 'expected exactly 1 file record written, got ' + puts);
     }, browser, base);
 
+    await test('A-01: another tab deleting the database is not blocked (versionchange) and the next save recreates all data', async ({ page, ctx, base }) => {
+      await page.evaluate(() => STATE.flush());
+      const p2 = await ctx.newPage();
+      await p2.goto(base + NEUTRAL);
+      await deleteDbFrom(p2); /* يفشل بمهلة إن حجب التطبيقُ الحذفَ بإبقاء اتصاله مفتوحًا */
+      await p2.close();
+      assert((await page.evaluate(() => STORE._db)) === null, 'connection was not closed on versionchange');
+      await typeAll(page, 'AFTER-DB-DELETED'); await sleep(900);
+      assert((await page.evaluate(() => STATE.saveFailed)) === false, 'save failed after the database was deleted by another tab');
+      assert((await page.evaluate(() => STORE._req('files', s => s.count()))) === 3, 'not all files were rewritten into the new database');
+      assert((await stored(page)) === 'AFTER-DB-DELETED', 'edit not stored');
+    }, browser, base);
+
     await test('A-01: legacy localStorage project is migrated into IndexedDB on first run', async ({ page, ctx, base }) => {
       /* أنهِ أي حفظ معلّق للصفحة القديمة أولًا: وإلا يكتب pagehide سجل طوارئ لمشروعها (سباق ظهر في CI) فيتداخل مع الكتلة القديمة التي نحقنها هنا */
       await page.evaluate(() => STATE.flush());
       const p2 = await ctx.newPage();
-      await p2.goto(base + '/manifest.json');
-      await p2.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('kingcode'); r.onsuccess = r.onerror = r.onblocked = () => res(); }));
+      await p2.goto(base + NEUTRAL);
+      await deleteDbFrom(p2); /* الصفحة المفتوحة تغلق اتصالها عند versionchange فيكتمل الحذف في كل المتصفحات */
       await p2.evaluate(() => localStorage.setItem('kingcode:state:v1', JSON.stringify({ v: 1, files: [{ id: 'L1', name: 'legacy.md', content: 'LEGACY-DATA', updatedAt: 1 }], tabs: ['L1'], activeId: 'L1', settings: {}, uiPrefs: {} })));
       await p2.close();
-      await page.evaluate(() => new Promise(res => { /* أغلق اتصال الصفحة الحالية بقاعدة البيانات قبل إعادة التحميل */ STORE._db && STORE._db.close(); res(); }));
       await reload(page); await sleep(700);
       assert((await page.evaluate(() => kc.STATE.files().map(f => f.name).join())) === 'legacy.md', 'legacy project not loaded');
       assert((await page.evaluate(() => kc.EDITOR.cm.getValue())) === 'LEGACY-DATA', 'editor does not show migrated file');
@@ -235,11 +276,10 @@ async function importJson(page, obj) {
     await test('A-01: upgrading user edits immediately (first IndexedDB save still pending) and reloads: migrated project + edit survive', async ({ page, ctx, base }) => {
       await page.evaluate(() => STATE.flush());
       const p2 = await ctx.newPage();
-      await p2.goto(base + '/manifest.json');
+      await p2.goto(base + NEUTRAL);
       await p2.evaluate(() => localStorage.setItem('kingcode:state:v1', JSON.stringify({ v: 1, files: [{ id: 'L1', name: 'old-a.md', content: 'OLD-A', updatedAt: 1 }, { id: 'L2', name: 'old-b.md', content: 'OLD-B', updatedAt: 1 }], tabs: ['L1'], activeId: 'L1', settings: {}, uiPrefs: {} })));
-      await p2.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('kingcode'); r.onsuccess = r.onerror = r.onblocked = () => res(); }));
+      await deleteDbFrom(p2); /* الصفحة المفتوحة تغلق اتصالها عند versionchange فيكتمل الحذف في كل المتصفحات */
       await p2.close();
-      await page.evaluate(() => { STORE._db && STORE._db.close(); });
       await reload(page); /* ترحيل: الحفظ الأول إلى IndexedDB ما زال معلّقًا (debounce) */
       await typeAll(page, 'EDIT-DURING-FIRST-SAVE');
       await reload(page); /* pagehide ⇒ سجل طوارئ كامل */
@@ -588,7 +628,7 @@ async function importJson(page, obj) {
     /* ---- F-06: عزل الكاش ---- */
     await test('F-06: service worker never deletes caches it does not own', async ({ page, ctx, base }) => {
       const p2 = await ctx.newPage();
-      await p2.goto(base + '/manifest.json');
+      await p2.goto(base + NEUTRAL);
       await p2.evaluate(() => caches.open('other-app-cache-v1').then(c => c.put('/x', new Response('x'))));
       await p2.close();
       await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); if (r) await r.unregister(); for (const k of await caches.keys()) if (k.startsWith('kingcode-')) await caches.delete(k); });

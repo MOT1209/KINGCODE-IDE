@@ -42,7 +42,14 @@ jobs:
         run: npm run lint
 
   e2e:
+    name: e2e (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      KC_BROWSER: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +60,7 @@ jobs:
       - name: Install dev tooling (Playwright is a devDependency only)
         run: |
           npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: "E2E (real Chromium - workflows, regression, security)"
+      - name: "E2E (real browser - workflows, regression, security)"
         run: npm run test:e2e

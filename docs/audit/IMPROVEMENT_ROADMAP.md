@@ -18,7 +18,7 @@ _Originally the proposal approved at the end of Phase 0 (2026-11-03). Updated at
 
 ## Not delivered / next (priority order)
 
-1. Cross-browser and real-device verification (Firefox, WebKit, Android WebView, iOS) — **not tested at all**.
+1. Real-device verification (Safari/iOS, Android WebView, installed-app mode). Firefox and WebKit (Playwright builds) are covered by CI since 1.4.2; real devices are **not tested**.
 2. Product decisions in `MULTI_PLATFORM_STRATEGY.md` §7, then P1–P3 of its phased plan (stable origin with headers → Android TWA → Windows MSIX).
 3. `FS` adapter (File System Access API) → Git → Tauri shell with a real terminal (none of these exist today).
 4. Backend/proxy + threat model before any AI, authentication or sync.
