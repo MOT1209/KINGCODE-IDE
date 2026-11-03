@@ -74,7 +74,7 @@ _Status: **plan only**. Nothing in this document is implemented. It describes ho
 
 | Phase | Deliverable | Prerequisites in this repo | Exit criteria |
 |---|---|---|---|
-| P0 *(done)* | Hardened PWA, tests, CI | — | 47 E2E, 43 unit, lint, CI green |
+| P0 *(done)* | Hardened PWA, tests, CI | — | 50 E2E, 44 unit, lint, CI green (v1.5.0) |
 | P1 | Stable public origin on a host that can send headers (see `docs/security/HOSTING_HEADERS.md`); `assetlinks.json` | none | Lighthouse PWA installable, headers verified |
 | P2 | **Android TWA** (Bubblewrap/PWABuilder) to a Play internal-testing track | P1 | Installs, offline works, update flow works on a device (**needs real devices/emulators — not testable here**) |
 | P3 | **Windows MSIX** from the PWA to the Store | P1 | Passes Store certification checks (**needs a Windows machine — not testable here**) |
@@ -98,3 +98,44 @@ _Status: **plan only**. Nothing in this document is implemented. It describes ho
 2. Is a **real terminal** a requirement for Android? (If yes, a remote dev-environment service is the only honest option; it changes the backend scope.)
 3. Which AI provider(s) and who pays for usage? (Decides the proxy design and rate limits.)
 4. Is offline-only (no account) a product principle, or is cloud sync a core feature?
+
+## 8. Assessment (2026-11-03, against `fd445f2`) — readiness and future-feature roadmap
+
+_Assessment and roadmap only. Nothing here is built. Vendor/store facts are from knowledge, **not re-checked against current vendor documentation**; verify before acting._
+
+### 8.1 Platform readiness (actual artifacts)
+
+| Requirement | Android (TWA / Play) | Windows (MSIX / Store) |
+|---|---|---|
+| Installable PWA (manifest, SW, icons 192/512 + maskable) | Present (`store:check` 53/53) | Present |
+| Screenshots | Present (wide 1280×720 ×2, narrow 540×960 ×2) | Present |
+| Privacy policy URL | `privacy.html` exists, **no public URL** (no reachable deployment) | same |
+| Public HTTPS origin | **Missing / unverified** (`kingcode-ide.vercel.app` unreachable; no such Vercel project) | **Missing** |
+| Digital Asset Links `/.well-known/assetlinks.json` | **Missing** (needs real signing fingerprint; placeholder deliberately forbidden) | n/a |
+| Package (AAB / MSIX) | **None built** | **None built** |
+| Signing key / certificate | **None** (owner must create; Play App Signing vs upload key) | **None** (Partner Center identity values: Package name, Publisher `CN=`) |
+| Developer account | Owner action | Owner action |
+| Play feature graphic 1024×500; data-safety / content-rating answers | Missing (drafts in `docs/store/LISTING.md`) | Age rating, listing: owner action |
+| Device test | **Never done** | **Never done** |
+| Known functional gap | Live preview fails offline (F-02) | same |
+
+Verdict: **PWA-ready, not store-ready.** Neither platform has a package, signature, origin or submission. Order: public origin → fix/decide F-02 → PWABuilder/Bubblewrap build (owner keys) → device tests → submission.
+
+### 8.2 Future features
+
+Complexity: S ≤ 1 wk, M 2–4 wks, L 1–3 months, XL > 3 months (single developer, rough).
+
+| # | Feature | Status today | Required architecture | Dependencies | Security considerations | Complexity | Order |
+|---|---|---|---|---|---|---|---|
+| 1 | KING Editor improvements | Basic CM5 editor Implemented; folding/diagnostics/LSP Not Implemented | Keep CM5 short-term (folding addon, lint addon); CM6 migration as its own tested project; `FS` seam not required | CM5 addons or CM6, ES modules decision (ADR-4/5) | Linting must run in a Worker/sandbox, not in the shell | S (addons) / L (CM6) | 3 |
+| 2 | KING Terminal | Not Implemented (console ≠ shell) | Web: none possible beyond a labelled JS sandbox. Windows: Tauri + PTY + xterm.js behind allow-listed commands. Android: remote dev container | Native shell (#10), `FS` adapter | Command execution = highest-risk surface; allow-list, no `eval`, user consent | XL | 8 |
+| 3 | KING Git & GitHub | Not Implemented | `isomorphic-git` over an `FS` adapter; OAuth PKCE for GitHub; CORS proxy for HTTPS remotes | `FS` adapter, auth, token store | Tokens never in IndexedDB plaintext (OS keychain via shell); explicit consent for push | L | 6 |
+| 4 | KING AI Assistant | Not Implemented | Backend proxy holding provider keys; tool layer limited to `Commands`/`STATE`; approval for writes; works offline-disabled | Backend, auth (#8), cost model | Prompt injection from project files; key never in client; data-egress disclosure (privacy policy must change) | L | 9 |
+| 5 | KING Agents | Not Implemented | Agent loop on top of #4 using the same `STATE` write path, undo journal, step budget | #3, #4, #2 | Autonomy limits, per-action consent, audit log | XL | 10 |
+| 6 | KING Visual Builder | Not Implemented | Visual DOM editor emitting files through `STATE`; preview sandbox reused | #1, stable preview (F-02) | Generated code must go through the same sandbox; no remote assets by default | L | 7 |
+| 7 | KING Marketplace | Not Implemented | Declarative extension format (themes/snippets/templates/commands) in an opaque-origin sandbox with a message API, then signing/review | Backend, auth, permission model | Largest supply-chain risk; per-extension capabilities, signing, revocation | XL | 11 |
+| 8 | KING Cloud Sync | Not Implemented | Backend + OAuth; per-file LWW with conflict copies using existing `savedAt`; optional E2E encryption | Auth, backend | Encryption at rest/in transit, account deletion, privacy-policy update | L | 5 |
+| 9 | Android application | Planned (TWA first; Capacitor later) | See §2/§8.1 | Public origin, owner keys, device tests | Asset links correctness; signing key custody | S–M (TWA) / M (Capacitor) | 2 |
+| 10 | Windows application | Planned (MSIX first; Tauri later) | See §2/§8.1 | Public origin, Partner Center, certificate | Package identity, signing | S–M (MSIX) / L (Tauri) | 2 |
+
+**Recommended sequence:** (0) publish to a reachable HTTPS origin and verify headers; (1) resolve F-02; (2) Android TWA + Windows MSIX; (3) editor add-ons; (4) `FS` adapter (File System Access API); (5) auth + backend + sync; (6) Git; (7) visual builder; (8) native terminal (Tauri); (9) AI assistant; (10) agents; (11) marketplace. Auth/backend is placed before AI and sync because both need secrets handling the client cannot provide.

@@ -1,3 +1,5 @@
+> **HISTORICAL (stops at v1.4.2; its "PR #3 pending / not merged" statements are no longer true).** Current status: `/IMPLEMENTATION_PROGRESS.md`.
+
 # Implementation Progress
 
 _Shared between agents (OpenCode / Claude Code). Update at every phase boundary. Final outcome: `FINAL_ENGINEERING_REPORT.md`._
