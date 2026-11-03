@@ -578,6 +578,13 @@ async function importJson(page, obj) {
     /* ---- Phase 5: تخطيط الجوال/الآيباد/سطح المكتب ---- */
     const PHONE = { viewport: { width: 390, height: 800 }, touch: true, mobile: true };
     const visible = (page, sel) => page.evaluate(sel => { const e = document.querySelector(sel); if (!e) return false; const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0; }, sel);
+    /* ينتظر تحقق حالة الظهور (حتى 4 ث) بدل نوم ثابت: الشريط الجانبي يتحرك بانتقال CSS 0.18s وقد يتأخر على مشغّلات CI البطيئة */
+    const waitVisible = async (page, sel, want, why) => {
+      const deadline = Date.now() + 4000;
+      let now;
+      do { now = await visible(page, sel); if (now === want) return; await sleep(100); } while (Date.now() < deadline);
+      throw new Error(why + ' (expected ' + sel + ' visible=' + want + ' within 4 s)');
+    };
 
     await test('UX phone: one full-height pane at a time, labeled bottom nav, touch targets >= 44px, no overflow', async ({ page }) => {
       assert(await visible(page, '.mobile-quickbar'), 'bottom nav missing');
@@ -626,16 +633,16 @@ async function importJson(page, obj) {
     }, browser, base, { viewport: { width: 820, height: 1100 }, touch: true });
 
     await test('UX desktop: sidebar open by default, user choice persists, and a trip through phone size does not overwrite it', async ({ page }) => {
-      assert(await visible(page, '#sidebar'), 'sidebar not visible on desktop');
-      await page.click('#btnSidebar'); await sleep(300);
-      assert(!(await visible(page, '#sidebar')), 'sidebar did not hide');
+      await waitVisible(page, '#sidebar', true, 'sidebar not visible on desktop');
+      await page.click('#btnSidebar');
+      await waitVisible(page, '#sidebar', false, 'sidebar did not hide');
       await page.setViewportSize({ width: 390, height: 800 }); await sleep(400);
       await page.setViewportSize({ width: 1280, height: 800 }); await sleep(400);
-      assert(!(await visible(page, '#sidebar')), 'desktop choice (hidden) was lost after resizing through phone size');
+      await waitVisible(page, '#sidebar', false, 'desktop choice (hidden) was lost after resizing through phone size');
       await sleep(400); await reload(page);
-      assert(!(await visible(page, '#sidebar')), 'desktop sidebar choice not persisted');
-      await page.click('#btnSidebar'); await sleep(300);
-      assert(await visible(page, '#sidebar'), 'sidebar did not show again');
+      await waitVisible(page, '#sidebar', false, 'desktop sidebar choice not persisted');
+      await page.click('#btnSidebar');
+      await waitVisible(page, '#sidebar', true, 'sidebar did not show again');
     }, browser, base);
 
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */
