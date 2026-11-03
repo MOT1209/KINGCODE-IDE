@@ -43,7 +43,7 @@ async function measure(browser, base) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     let navs = 0;
-    page.on('framenavigated', f => { if (f === page.mainFrame()) navs++; });
+    page.on('load', () => { navs++; }); /* أحداث تحميل مستند حقيقية فقط (history.replaceState لا يُحتسب) */
     const t0 = Date.now();
     await page.goto(base + '/');
     await page.waitForFunction(() => window.KINGCODE_READY);
