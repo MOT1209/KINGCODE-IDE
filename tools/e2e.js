@@ -130,6 +130,17 @@ async function importJson(page, obj) {
       assert((await page.evaluate(() => kc.STATE.files().length)) === 3, 'restore');
     }, browser, base);
 
+    await test('A-02: after import/restore the editor, tabs and status bar show the new project', async ({ page }) => {
+      await importJson(page, { 'zeta.txt': 'ZETA-CONTENT', 'beta.txt': 'B' });
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(500);
+      assert((await page.evaluate(() => kc.EDITOR.cm.getValue())) === 'ZETA-CONTENT', 'editor still shows old document');
+      assert((await page.textContent('#statusFile')) === 'zeta.txt', 'status bar stale: ' + (await page.textContent('#statusFile')));
+      assert((await page.$$eval('.tab', n => n.length)) === 1, 'tabs not reset');
+      await page.evaluate(() => Commands.run('files.restoreBackup'));
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(500);
+      assert(/<html|<!DOCTYPE/i.test(await page.evaluate(() => kc.EDITOR.cm.getValue())), 'editor not showing restored index.html');
+    }, browser, base);
+
     /* ---- F-03: تفريغ الحفظ عند المغادرة ---- */
     await test('F-03: edit then immediate reload does not lose the edit', async ({ page }) => {
       await typeAll(page, '<h1>FAST</h1>');

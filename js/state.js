@@ -97,6 +97,81 @@ const STATE = {
   },
   isDirty(id) { return this.data.dirty.has(id); },
 
+  /* ---------- مسار الكتابة الوحيد لملفات المشروع ----------
+     كل إنشاء/إعادة تسمية/حذف/استبدال يمر من هنا: وحده يفرض الثوابت (اسم فريد، الحد الأقصى للعدد،
+     اتساق التبويبات والملف النشط). لا أثر على الـ DOM — الواجهة تبقى في FILES. */
+
+  /** اسم غير مستخدم: يضيف -2، -3… قبل الامتداد عند التكرار */
+  uniqueName(baseName) {
+    if (!this.fileByName(baseName)) return baseName;
+    const dot = baseName.lastIndexOf('.');
+    const stem = dot > 0 ? baseName.slice(0, dot) : baseName;
+    const ext = dot > 0 ? baseName.slice(dot) : '';
+    let i = 2, cand;
+    do { cand = stem + '-' + i + ext; i++; } while (this.fileByName(cand) && i < 100000);
+    return cand;
+  },
+
+  /** يضيف ملفًا. يعيد { ok:true, file } أو { ok:false, reason:'invalid'|'limit'|'duplicate' } */
+  addFile(name, content, { tab = true } = {}) {
+    name = U.safeFileName(name);
+    if (!name || name === '.' || name === '..') return { ok: false, reason: 'invalid' };
+    if (this.data.files.length >= KC.limits.maxFiles) return { ok: false, reason: 'limit' };
+    if (this.fileByName(name)) return { ok: false, reason: 'duplicate' };
+    const f = { id: U.uid(), name, content: typeof content === 'string' ? content : '', updatedAt: Date.now() };
+    this.data.files.push(f);
+    if (tab) {
+      if (this.data.tabs.length >= KC.limits.tabsMax) {
+        /* لا نُخرج التبويب النشط عند بلوغ الحد */
+        const victim = this.data.tabs.find(t => t !== this.data.activeId);
+        if (victim) this.data.tabs.splice(this.data.tabs.indexOf(victim), 1);
+      }
+      this.data.tabs.push(f.id);
+    }
+    this.persist();
+    return { ok: true, file: f };
+  },
+
+  /** يعيد تسمية ملف. يعيد { ok, reason?, old?, file? } */
+  renameFile(id, newName) {
+    const f = this.file(id);
+    if (!f) return { ok: false, reason: 'missing' };
+    newName = U.safeFileName(newName);
+    if (!newName || newName === '.' || newName === '..') return { ok: false, reason: 'invalid' };
+    if (newName === f.name) return { ok: false, reason: 'same' };
+    if (this.fileByName(newName)) return { ok: false, reason: 'duplicate' };
+    const old = f.name;
+    f.name = newName;
+    f.updatedAt = Date.now();
+    this.persist();
+    return { ok: true, old, file: f };
+  },
+
+  /** يحذف ملفًا (لا يحذف الوحيد). يعيد { ok, reason?, activeId } حيث activeId هو الملف النشط بعد الحذف */
+  removeFile(id) {
+    const f = this.file(id);
+    if (!f) return { ok: false, reason: 'missing' };
+    if (this.data.files.length <= 1) return { ok: false, reason: 'last' };
+    this.data.files.splice(this.data.files.indexOf(f), 1);
+    this.data.tabs = this.data.tabs.filter(t => t !== id);
+    this.markDirty(id, false);
+    if (this.data.activeId === id) {
+      this.data.activeId = this.data.tabs[0] || (this.data.files[0] && this.data.files[0].id) || null;
+      if (this.data.activeId && !this.data.tabs.includes(this.data.activeId)) this.data.tabs.push(this.data.activeId);
+    }
+    this.persist();
+    return { ok: true, activeId: this.data.activeId, file: f };
+  },
+
+  /** يستبدل المشروع كاملًا بملفات سليمة (ناتج U.sanitizeFiles().files) */
+  replaceProject(files) {
+    this.data.files = files.slice(0, KC.limits.maxFiles);
+    this.data.tabs = [this.data.files[0].id];
+    this.data.activeId = this.data.files[0].id;
+    this.clearDirty();
+    this.persist();
+  },
+
   /* ---------- التخزين الدائم ---------- */
   _persistDeb: null,
   _pending: false,

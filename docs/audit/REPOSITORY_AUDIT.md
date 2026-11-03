@@ -106,6 +106,10 @@ Severity scale: Critical = silent data loss/RCE in common flow; High = data loss
 - `hydrate` does not validate setting types/ranges (e.g. `theme` unknown value) or duplicate ids.
 - `Commands.run` is guarded but palette `exec()` calls `it.run()` unguarded.
 
+### F-14 — After import/restore the editor kept showing the old document — **HIGH** (data corruption) — found during Phase 3, fixed in 1.0.9
+- **Evidence:** import `{zeta.txt}` → `kc.EDITOR.cm.getValue()` still returned the previous project's text and the status bar showed the old file; verified red on 1.0.8 by the `A-02` E2E test. Cause: `_applyImported` assigned `activeId` before `setActive()`, which exits early for an unchanged id, so `active:change` never fired. The next keystroke would write the stale text into the imported file.
+- **Fix:** `STATE.replaceProject` + explicit `active:change`. **Verify:** E2E `A-02`.
+
 ### F-13 — Info
 - Responsive layouts: no horizontal overflow at 390/820/1366 px (probe3). Phone layout is functional but cramped (preview+console+editor stacked; toast overlaps). Needs design pass, not a defect.
 - Large file: 100 k-line paste took ~300 ms; persisted state then reached 1.4 MB, close to the localStorage ceiling (see F-02).
