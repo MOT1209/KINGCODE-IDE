@@ -107,7 +107,7 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 - **Deliberately deferred:** ES modules/bundler (ADR-4), CodeMirror 6 (ADR-5).
 - **Known trade-offs:** preview has no network by design; `style-src 'unsafe-inline'`; plaintext local storage; IndexedDB flush on page exit is best-effort through a journal (tested for reload, not for every crash scenario); a deleted file can reappear after a crash that skips the journal (journal carries changes, not deletions); 60-file and 2,000,000-character limits; last-writer-wins across tabs.
 - The `docs/audit/DEVELOPMENT_ROADMAP.md` and `FEATURE_MATRIX.md` files predate this work and are kept only as history.
-- No lockfile is committed; dev tools install floating versions in CI.
+- Baseline had no lockfile; `package-lock.json` was added in the re-audit branch (CI still uses `npm install`).
 
 ## 13. Recommended next development phase
 

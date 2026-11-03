@@ -17,7 +17,7 @@ _Audited commit `fd445f2` (v1.5.0), 2026-11-03, plus the changes in this branch 
 | F-06 | Shell `style-src 'unsafe-inline'` | Low | **Accepted residual** (inline `style=` attributes); scripts are strict |
 | F-07 | Project data stored unencrypted in IndexedDB; shared by every page on the same origin | Info | **Accepted**, documented in `SECURITY.md` |
 | F-08 | Security headers exist as config only; never observed on a live host | Info | **Unverified** (no reachable deployment) |
-| F-09 | No lockfile; CI actions pinned by tag (`@v4`), not SHA | Info | Open (recommendation) |
+| F-09 | CI actions pinned by tag (`@v4`), not SHA; CI uses `npm install` | Info | Partly fixed: `package-lock.json` now committed; SHA pinning and `npm ci` still open |
 | F-10 | CodeMirror 5 vendored (version string 5.65.16 confirmed in the bundle); maintenance mode; no advisory database check possible offline | Info | Open |
 
 Previously reported S-01…S-10 re-verified: see `docs/engineering/PHASE_0_AUDIT.md` §4.

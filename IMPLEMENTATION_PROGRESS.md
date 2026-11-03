@@ -34,7 +34,8 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 | E2E on Chromium, Firefox, WebKit | Implemented in CI; Chromium re-run locally (50/50); Firefox/WebKit **not run locally** (download blocked) | CI run 41690025826 on `fd445f2` |
 | Dev-dependency advisories | Implemented (fixed) | override, `npm audit` 0 |
 | CI least-privilege token | Implemented (fixed) | `permissions: contents: read` |
-| Lockfile / SHA-pinned actions | Not Implemented | recommended |
+| Lockfile | Implemented (`package-lock.json` committed; CI still runs `npm install`, not `npm ci`) | — |
+| SHA-pinned actions | Not Implemented | recommended |
 | GitHub Release / tag for v1.5.0 | Not Implemented | none exist |
 | Public deployment | **Blocked** | `kingcode-ide.vercel.app` unreachable from here; no such project in the connected Vercel account; `vercel.json` unverified on a host |
 | Live security-header check | Blocked | needs a reachable deployment |
@@ -54,7 +55,7 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 1. **P1** Offline live preview broken (F-02) — decide approach in `SECURITY_AUDIT.md` §1.
 2. **P1** No reachable deployment → headers, installability, icons, privacy URL unverified live.
 3. **P2** Real-device / Safari / WebView testing.
-4. **P2** Lockfile, SHA-pinned actions.
+4. **P2** SHA-pinned actions; switch CI to `npm ci`.
 5. **P3** SW navigation cache keys (F-05); `style-src 'unsafe-inline'`.
 
 ## Test evidence (this branch, executed in the session environment, Node v22.23.4)

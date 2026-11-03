@@ -11,7 +11,7 @@ _Audited commit: `fd445f2` (`main`, v1.5.0), 2026-11-03. Every statement below w
 | Earlier CI failure | Run 18 on `19818d9` failed (WebKit sidebar-transition timing in a test); fixed by `50357f8`, green in run 19 | Actions runs 18/19 |
 | GitHub Releases | **None exist.** "v1.5.0" is a version string in `package.json`, `js/config.js`, `service-worker.js` and CHANGELOG, not a tagged release | `list_releases` → `[]` |
 | Runtime dependencies | None. Dev-only: `playwright`, `eslint`, `@eslint/js`, `globals` | `package.json` |
-| Lockfile | Not committed (CI uses floating `npm install`) | `git ls-files` |
+| Lockfile | Not committed at baseline (added later in this branch) | `git ls-files` |
 | Deployment | `vercel.json` exists. The URL `https://kingcode-ide.vercel.app/` could **not** be reached from this environment (egress proxy returns 403) and no `kingcode-ide` project exists in the connected Vercel account (7 other projects listed) | `curl -I` → 403; Vercel `list_projects` |
 
 ## 2. Commands run in this session (baseline, before any change)
