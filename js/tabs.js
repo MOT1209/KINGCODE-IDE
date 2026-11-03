@@ -74,7 +74,9 @@ const TABS = {
 
       const label = document.createElement('span');
       label.className = 'tab-label';
-      label.textContent = f.name;
+      const sameBase = STATE.data.tabs.filter(t => { const o = STATE.file(t); return o && U.baseName(o.name) === U.baseName(f.name); }).length > 1;
+      label.textContent = sameBase ? f.name.split('/').slice(-2).join('/') : U.baseName(f.name);
+      li.title = f.name;
       const ext = KC.extOf(f.name);
       if (ext) { label.style.setProperty('--ext-color', (KC.langFor(f.name) || {}).color || '#9aa4b2'); label.classList.add('has-ext'); }
 

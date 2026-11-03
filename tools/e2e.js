@@ -228,6 +228,133 @@ async function importJson(page, obj) {
       assert((await page.evaluate(() => kc.STATE.files()[0].content)) === 'FALLBACK-OK', 'fallback persistence failed');
     }, browser, base, { init: () => { try { Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true }); } catch (e) {} } });
 
+    /* ---- A-03: نظام الملفات الافتراضي (مجلدات) ---- */
+    const rowsOf = page => page.$$eval('#file-list .file-item', n => n.map(r => ({ kind: r.dataset.kind, label: r.querySelector('.file-name').textContent, level: r.getAttribute('aria-level'), expanded: r.getAttribute('aria-expanded') })));
+    const fillPrompt = async (page, value) => { await page.waitForSelector('#prompt-modal', { state: 'visible' }); await page.fill('#prompt-input', value); await page.click('#prompt-ok'); await sleep(250); };
+    const confirmOk = async page => { await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(300); };
+
+    await test('A-03: nested path creates a folder row; folders collapse/expand and the state survives reload', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('src/app.js', 'x'); FILES.create('src/lib/util.js', 'y'); });
+      await sleep(200);
+      let rows = await rowsOf(page);
+      assert(rows.some(r => r.kind === 'folder' && r.label === 'src/' && r.level === '1'), 'no src folder: ' + JSON.stringify(rows));
+      assert(rows.some(r => r.kind === 'folder' && r.label === 'lib/' && r.level === '2'), 'no nested folder');
+      assert(rows.some(r => r.kind === 'file' && r.label === 'util.js' && r.level === '3'), 'file not nested under lib');
+      await page.click('#file-list .folder-item[data-path="src"]'); await sleep(200);
+      rows = await rowsOf(page);
+      assert(!rows.some(r => r.label === 'app.js'), 'collapse did not hide children');
+      assert((await page.getAttribute('#file-list .folder-item[data-path="src"]', 'aria-expanded')) === 'false', 'aria-expanded not updated');
+      await sleep(400); await reload(page);
+      rows = await rowsOf(page);
+      assert(!rows.some(r => r.label === 'app.js') && rows.some(r => r.label === 'src/'), 'collapsed state lost on reload');
+    }, browser, base);
+
+    await test('A-03: "new folder" button creates an empty folder that persists; clashes are refused with a message', async ({ page }) => {
+      await page.click('#btnNewFolder');
+      await fillPrompt(page, 'assets/img');
+      let rows = await rowsOf(page);
+      assert(rows.some(r => r.label === 'assets/') && rows.some(r => r.label === 'img/'), 'empty folders not shown: ' + JSON.stringify(rows));
+      await sleep(400); await reload(page);
+      assert((await rowsOf(page)).some(r => r.label === 'img/'), 'empty folder lost on reload');
+      await page.click('#btnNewFolder'); await fillPrompt(page, 'index.html');
+      assert((await page.$$eval('.toast', n => n.map(x => x.textContent))).some(t => /يتعارض|بنفس الاسم/.test(t)), 'no clash message');
+    }, browser, base);
+
+    await test('A-03: rename folder moves its files (editor, tabs, status bar follow); delete folder removes contents', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('old/a.css', 'a{}'); FILES.create('old/sub/b.md', '# b'); });
+      await sleep(200);
+      await page.hover('#file-list .folder-item[data-path="old"]');
+      await page.click('#file-list .folder-item[data-path="old"] [data-action="rename-folder"]');
+      await fillPrompt(page, 'renamed');
+      const names = await page.evaluate(() => kc.STATE.files().map(f => f.name));
+      assert(names.includes('renamed/a.css') && names.includes('renamed/sub/b.md') && !names.some(n => n.startsWith('old/')), 'rename failed: ' + names);
+      assert((await page.evaluate(() => kc.STATE.file(kc.STATE.data.activeId).name)) === 'renamed/sub/b.md', 'active file changed unexpectedly');
+      assert((await page.textContent('#statusFile')) === 'renamed/sub/b.md', 'status bar stale');
+      await page.hover('#file-list .folder-item[data-path="renamed"]');
+      await page.click('#file-list .folder-item[data-path="renamed"] [data-action="delete-folder"]');
+      assert(/2/.test(await page.textContent('#confirm-msg')), 'confirm should state the file count');
+      await confirmOk(page);
+      const after = await page.evaluate(() => kc.STATE.files().map(f => f.name));
+      assert(!after.some(n => n.startsWith('renamed/')), 'folder contents remain: ' + after);
+      assert((await page.evaluate(() => !!kc.STATE.data.activeId && !!kc.STATE.file(kc.STATE.data.activeId))), 'no valid active file after delete');
+    }, browser, base);
+
+    await test('A-03: file filter narrows the tree (with ancestors expanded) and Esc clears it', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('deep/er/needle.txt', ''); FILES.create('other/hay.txt', ''); });
+      await page.click('#fileFilter'); await page.keyboard.type('needle'); await sleep(250);
+      let rows = await rowsOf(page);
+      assert(rows.some(r => r.label === 'needle.txt') && rows.some(r => r.label === 'deep/') && !rows.some(r => r.label === 'hay.txt'), 'filter result wrong: ' + JSON.stringify(rows));
+      await page.keyboard.press('Escape'); await sleep(250);
+      rows = await rowsOf(page);
+      assert(rows.some(r => r.label === 'hay.txt'), 'Esc did not clear filter');
+      await page.fill('#fileFilter', 'zzz-no-match'); await sleep(200);
+      assert(/لا نتائج/.test(await page.textContent('#file-list')), 'no empty-state message');
+    }, browser, base);
+
+    await test('A-03: preview resolves relative paths inside folders (css/js next to a nested index.html)', async ({ page }) => {
+      await importJson(page, {
+        'site/index.html': '<!DOCTYPE html><link rel="stylesheet" href="css/a.css"><body><script src="js/b.js"></script></body>',
+        'site/css/a.css': 'body{color:red}', 'site/js/b.js': 'console.log("nested-ok")'
+      });
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok');
+      await page.waitForFunction(() => /nested-ok/.test(document.querySelector('#console-output').textContent), null, { timeout: 6000 });
+    }, browser, base);
+
+    await test('A-03: export → import round-trips folder paths and empty-folder-free structure', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('a/b/c.txt', 'deep'); });
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => FILES.exportProject())]);
+      const json = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+      assert(json['a/b/c.txt'] === 'deep', 'export lost the path: ' + Object.keys(json));
+      await importJson(page, json);
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(400);
+      assert((await page.evaluate(() => kc.STATE.fileByName('a/b/c.txt') !== null)), 'path lost on import');
+    }, browser, base);
+
+    await test('A-03: tree keyboard navigation (arrows, Enter, expand/collapse by direction)', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('k/one.js', '1'); FILES.create('k/two.js', '2'); });
+      await sleep(200);
+      await page.focus('#file-list .folder-item[data-path="k"]');
+      await page.keyboard.press('ArrowLeft'); await sleep(150); /* RTL: ← يوسّع/يطوي حسب الاتجاه */
+      const exp1 = await page.getAttribute('#file-list .folder-item[data-path="k"]', 'aria-expanded');
+      await page.keyboard.press('ArrowRight'); await sleep(150);
+      const exp2 = await page.getAttribute('#file-list .folder-item[data-path="k"]', 'aria-expanded');
+      assert(exp1 !== exp2, 'arrow keys did not toggle the folder');
+      if ((await page.getAttribute('#file-list .folder-item[data-path="k"]', 'aria-expanded')) !== 'true') await page.keyboard.press('Enter');
+      await sleep(150);
+      await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); await sleep(300);
+      assert(/^k\//.test(await page.evaluate(() => kc.STATE.file(kc.STATE.data.activeId).name)), 'Enter did not open the focused file');
+    }, browser, base);
+
+    /* ---- Phase 5: إمكانية الوصول ---- */
+    await test('A11Y: every button has an accessible name; tree/option roles are correct', async ({ page }) => {
+      await sleep(300);
+      const unnamed = await page.evaluate(() => Array.from(document.querySelectorAll('button')).filter(b => !((b.getAttribute('aria-label') || b.textContent || '').trim())).map(b => b.outerHTML.slice(0, 80)));
+      assert(unnamed.length === 0, 'unnamed buttons: ' + unnamed.join(' | '));
+      const noName = await page.evaluate(() => Array.from(document.querySelectorAll('input:not([type=file]):not([type=checkbox]):not([type=range]), select')).filter(i => !(i.getAttribute('aria-label') || i.getAttribute('aria-labelledby') || (i.id && document.querySelector('label[for="' + i.id + '"]')))).map(i => i.id));
+      assert(noName.length === 0, 'unlabeled controls: ' + noName.join());
+      assert((await page.getAttribute('#file-list', 'role')) === 'tree', 'file list is not a tree');
+      await page.evaluate(() => Commands.run('ui.palette')); await sleep(200);
+      assert((await page.$$eval('#cmd-results li[role=option]', n => n.length)) > 0 && (await page.$$eval('#cmd-results li[aria-selected=true]', n => n.length)) === 1, 'palette options/aria-selected wrong');
+    }, browser, base);
+
+    await test('A11Y: Esc leaves the editor so Tab is not trapped; Tab still indents inside it', async ({ page }) => {
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); kc.EDITOR.cm.setCursor({ line: 0, ch: 0 }); });
+      const before = await page.evaluate(() => kc.EDITOR.cm.getLine(0));
+      await page.keyboard.press('Tab');
+      assert((await page.evaluate(() => kc.EDITOR.cm.getLine(0))) !== before, 'Tab did not indent inside the editor');
+      await page.keyboard.press('Escape'); await sleep(100);
+      assert(await page.evaluate(() => !document.activeElement.closest('.CodeMirror')), 'focus still inside the editor after Esc');
+      await page.keyboard.press('Tab'); await sleep(100);
+      assert(await page.evaluate(() => !document.activeElement.closest('.CodeMirror') && document.activeElement !== document.body), 'Tab after Esc did not move focus to another control');
+    }, browser, base);
+
+    await test('A11Y: palette lists every file and command (no 14-item cut-off)', async ({ page }) => {
+      await page.evaluate(() => { for (let i = 0; i < 20; i++) FILES.create('p' + i + '.txt', ''); });
+      await page.evaluate(() => Commands.run('ui.palette')); await sleep(200);
+      const n = await page.$$eval('#cmd-results li', x => x.length);
+      assert(n > 30, 'palette truncated: ' + n);
+    }, browser, base);
+
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */
     await test('F-05: auto-save off keeps edits uncommitted until Ctrl+S', async ({ page }) => {
       await sleep(400);

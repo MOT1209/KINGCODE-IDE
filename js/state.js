@@ -28,7 +28,8 @@ const STATE = {
     },
     uiPrefs: {
       previewWidth: 0,  // 0 = تلقائي (grid)
-      sidebarOpen: true
+      sidebarOpen: true,
+      collapsedFolders: []   // مسارات المجلدات المطويّة في المستكشف
     }
   },
 
@@ -103,23 +104,60 @@ const STATE = {
      كل إنشاء/إعادة تسمية/حذف/استبدال يمر من هنا: وحده يفرض الثوابت (اسم فريد، الحد الأقصى للعدد،
      اتساق التبويبات والملف النشط). لا أثر على الـ DOM — الواجهة تبقى في FILES. */
 
-  /** اسم غير مستخدم: يضيف -2، -3… قبل الامتداد عند التكرار */
-  uniqueName(baseName) {
-    if (!this.fileByName(baseName)) return baseName;
-    const dot = baseName.lastIndexOf('.');
-    const stem = dot > 0 ? baseName.slice(0, dot) : baseName;
-    const ext = dot > 0 ? baseName.slice(dot) : '';
-    let i = 2, cand;
-    do { cand = stem + '-' + i + ext; i++; } while (this.fileByName(cand) && i < 100000);
-    return cand;
+  /* الملفات أسماؤها مسارات افتراضية بفاصل «/» (src/app.js)؛ المجلدات تُستنتج من المسارات + قائمة المجلدات الفارغة الصريحة. */
+
+  /** أسماء كل الملفات كمجموعة (للتحقق من التعارض) */
+  _names(exceptId) {
+    const set = new Set();
+    for (const f of this.data.files) if (f.id !== exceptId) set.add(f.name);
+    return set;
   },
 
-  /** يضيف ملفًا. يعيد { ok:true, file } أو { ok:false, reason:'invalid'|'limit'|'duplicate' } */
+  /** اسم غير متعارض بجوار الأصل: يضيف -2، -3… قبل الامتداد (يحفظ المجلد) */
+  uniqueName(baseName) {
+    return U.resolveName(baseName, this._names());
+  },
+
+  /** كل المجلدات (صريحة + مستنتجة من مسارات الملفات) مرتبة أبجديًا */
+  folderPaths() {
+    const set = new Set();
+    const addWithAncestors = p => {
+      const parts = p.split('/');
+      for (let i = 1; i <= parts.length; i++) set.add(parts.slice(0, i).join('/'));
+    };
+    for (const f of this.data.files) {
+      const dir = U.dirName(f.name);
+      if (dir) addWithAncestors(dir);
+    }
+    for (const d of this.data.folders) addWithAncestors(d);
+    return Array.from(set).sort((x, y) => x.localeCompare(y));
+  },
+
+  /** هل المسار مجلد قائم؟ */
+  hasFolder(path) { return this.folderPaths().includes(path); },
+
+  /** سبب رفض مسار ملف/مجلد جديد: 'invalid' | 'duplicate' | 'conflict' | null (مقبول). exceptId يستثني ملفًا (إعادة التسمية) */
+  _pathProblem(path, { exceptId = null, asFolder = false } = {}) {
+    if (!path) return 'invalid';
+    const names = this._names(exceptId);
+    if (asFolder) {
+      if (names.has(path)) return 'conflict';
+      for (const n of names) if (path.startsWith(n + '/')) return 'conflict'; /* أحد الأسلاف ملف */
+      return null;
+    }
+    const c = U.pathConflict(path, names);
+    if (c) return c;
+    if (this.hasFolder(path)) return 'conflict'; /* المسار يطابق مجلدًا (حتى الفارغ) */
+    return null;
+  },
+
+  /** يضيف ملفًا. يعيد { ok:true, file } أو { ok:false, reason:'invalid'|'limit'|'duplicate'|'conflict' } */
   addFile(name, content, { tab = true } = {}) {
-    name = U.safeFileName(name);
-    if (!name || name === '.' || name === '..') return { ok: false, reason: 'invalid' };
+    name = U.safePath(name);
+    if (!name) return { ok: false, reason: 'invalid' };
     if (this.data.files.length >= KC.limits.maxFiles) return { ok: false, reason: 'limit' };
-    if (this.fileByName(name)) return { ok: false, reason: 'duplicate' };
+    const problem = this._pathProblem(name);
+    if (problem) return { ok: false, reason: problem };
     const f = { id: U.uid(), name, content: typeof content === 'string' ? content : '', updatedAt: Date.now() };
     this.data.files.push(f);
     if (tab) {
@@ -134,14 +172,15 @@ const STATE = {
     return { ok: true, file: f };
   },
 
-  /** يعيد تسمية ملف. يعيد { ok, reason?, old?, file? } */
+  /** يعيد تسمية/نقل ملف (الاسم الجديد مسار كامل). يعيد { ok, reason?, old?, file? } */
   renameFile(id, newName) {
     const f = this.file(id);
     if (!f) return { ok: false, reason: 'missing' };
-    newName = U.safeFileName(newName);
-    if (!newName || newName === '.' || newName === '..') return { ok: false, reason: 'invalid' };
+    newName = U.safePath(newName);
+    if (!newName) return { ok: false, reason: 'invalid' };
     if (newName === f.name) return { ok: false, reason: 'same' };
-    if (this.fileByName(newName)) return { ok: false, reason: 'duplicate' };
+    const problem = this._pathProblem(newName, { exceptId: id });
+    if (problem) return { ok: false, reason: problem };
     const old = f.name;
     f.name = newName;
     f.updatedAt = Date.now();
@@ -154,6 +193,14 @@ const STATE = {
     const f = this.file(id);
     if (!f) return { ok: false, reason: 'missing' };
     if (this.data.files.length <= 1) return { ok: false, reason: 'last' };
+    this._dropFile(f);
+    this.persist();
+    return { ok: true, activeId: this.data.activeId, file: f };
+  },
+
+  /** إزالة ملف من الحالة وإصلاح التبويبات والنشط (بلا حفظ) */
+  _dropFile(f) {
+    const id = f.id;
     this.data.files.splice(this.data.files.indexOf(f), 1);
     this.data.tabs = this.data.tabs.filter(t => t !== id);
     this.markDirty(id, false);
@@ -161,13 +208,63 @@ const STATE = {
       this.data.activeId = this.data.tabs[0] || (this.data.files[0] && this.data.files[0].id) || null;
       if (this.data.activeId && !this.data.tabs.includes(this.data.activeId)) this.data.tabs.push(this.data.activeId);
     }
+  },
+
+  /** ينشئ مجلدًا فارغًا. يعيد { ok, reason?, path? } — 'invalid' | 'duplicate' | 'conflict' */
+  addFolder(path) {
+    path = U.safePath(path);
+    if (!path) return { ok: false, reason: 'invalid' };
+    if (this.hasFolder(path)) return { ok: false, reason: 'duplicate' };
+    if (this._pathProblem(path, { asFolder: true })) return { ok: false, reason: 'conflict' };
+    this.data.folders.push(path);
     this.persist();
-    return { ok: true, activeId: this.data.activeId, file: f };
+    return { ok: true, path };
+  },
+
+  /** يعيد تسمية/ينقل مجلدًا بكل محتواه. يعيد { ok, reason?, ids? } */
+  renameFolder(oldPath, newPath) {
+    newPath = U.safePath(newPath);
+    if (!newPath) return { ok: false, reason: 'invalid' };
+    if (!this.hasFolder(oldPath)) return { ok: false, reason: 'missing' };
+    if (newPath === oldPath) return { ok: false, reason: 'same' };
+    if (newPath.startsWith(oldPath + '/')) return { ok: false, reason: 'inside' }; /* نقل مجلد إلى داخل نفسه */
+    if (this.hasFolder(newPath)) return { ok: false, reason: 'duplicate' };
+    if (this._pathProblem(newPath, { asFolder: true })) return { ok: false, reason: 'conflict' };
+    const prefix = oldPath + '/';
+    const moved = this.data.files.filter(f => f.name.startsWith(prefix));
+    /* الأسماء الناتجة يجب ألا تتعارض مع أي ملف خارج المجلد ولا تتجاوز العمق/الطول */
+    const others = new Set(this.data.files.filter(f => !f.name.startsWith(prefix)).map(f => f.name));
+    for (const f of moved) {
+      const nn = newPath + '/' + f.name.slice(prefix.length);
+      if (U.safePath(nn) !== nn || U.pathConflict(nn, others)) return { ok: false, reason: 'conflict' };
+    }
+    const ids = [];
+    for (const f of moved) { f.name = newPath + '/' + f.name.slice(prefix.length); f.updatedAt = Date.now(); ids.push(f.id); }
+    this.data.folders = this.data.folders
+      .map(d => (d === oldPath ? newPath : (d.startsWith(prefix) ? newPath + '/' + d.slice(prefix.length) : d)));
+    this.persist(ids);
+    return { ok: true, ids };
+  },
+
+  /** كل ملفات مجلد (وما تحته) */
+  filesInFolder(path) { const prefix = path + '/'; return this.data.files.filter(f => f.name.startsWith(prefix)); },
+
+  /** يحذف مجلدًا بكل محتواه (لا يترك المشروع بلا ملفات). يعيد { ok, reason?, removed:[files], activeId } */
+  removeFolder(path) {
+    if (!this.hasFolder(path)) return { ok: false, reason: 'missing' };
+    const victims = this.filesInFolder(path);
+    if (victims.length >= this.data.files.length) return { ok: false, reason: 'last' };
+    victims.forEach(f => this._dropFile(f));
+    const prefix = path + '/';
+    this.data.folders = this.data.folders.filter(d => d !== path && !d.startsWith(prefix));
+    this.persist();
+    return { ok: true, removed: victims, activeId: this.data.activeId };
   },
 
   /** يستبدل المشروع كاملًا بملفات سليمة (ناتج U.sanitizeFiles().files) */
   replaceProject(files) {
     this.data.files = files.slice(0, KC.limits.maxFiles);
+    this.data.folders = [];
     this.data.tabs = [this.data.files[0].id];
     this.data.activeId = this.data.files[0].id;
     this.clearDirty();
@@ -247,40 +344,30 @@ const STATE = {
   hydrate(raw) {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.files)) return false;
 
-    /* ملفات: تحقق وانتقاء */
-    const files = raw.files
-      .filter(f => f && typeof f.name === 'string')
-      .map(f => ({
+    /* ملفات: تحقق وانتقاء + تطبيع المسارات وحل التعارضات (تكرار/ملف↔مجلد) */
+    const used = new Set();
+    const files = [];
+    for (const f of raw.files) {
+      if (!f || typeof f.name !== 'string') continue;
+      let name = U.safePath(f.name) || U.safeFileName(f.name) || U.uid();
+      const resolved = U.resolveName(name, used);
+      if (resolved !== name) console.warn('[kingCode] file name conflict in storage — renamed:', name, '→', resolved);
+      name = resolved;
+      used.add(name);
+      files.push({
         id: typeof f.id === 'string' ? f.id : U.uid(),
-        name: U.safeFileName(f.name) || U.uid(),
+        name,
         content: typeof f.content === 'string' ? f.content : '',
         updatedAt: Number(f.updatedAt) || Date.now()
-      }));
-    if (!files.length) return false;
-
-    const names = new Set(files.map(f => f.name));
-    const ids = new Set(files.map(f => f.id));
-    if (names.size !== files.length) {
-      console.warn('[kingCode] duplicate file names in storage — normalizing…');
-      const seen = new Set();
-      files.forEach(f => {
-        if (seen.has(f.name)) {
-          /* لاحقة التفرد: العدد يتصاعد حتى اسم غير مُستخدَم فعلاً
-             (الصياغة القديمة كانت " (2)" ثابتة فتتصادم ثلاثة سجلات فأكثر) */
-          const m = f.name.match(/^(.+?)(\.\w+)?$/);
-          const base = m ? m[1] : String(f.name);
-          const ext = m && m[2] ? m[2] : '';
-          let n = 2;
-          let candidate = `${base} (${n})${ext}`;
-          while (seen.has(candidate)) { n += 1; candidate = `${base} (${n})${ext}`; }
-          f.name = U.safeFileName(candidate) || U.uid();
-        }
-        seen.add(f.name);
       });
     }
+    if (!files.length) return false;
+    const ids = new Set(files.map(f => f.id));
 
     this.data.files = files;
-    this.data.folders = Array.isArray(raw.folders) ? raw.folders.filter(x => typeof x === 'string') : [];
+    this.data.folders = (Array.isArray(raw.folders) ? raw.folders : [])
+      .map(x => (typeof x === 'string' ? U.safePath(x) : ''))
+      .filter((x, i, arr) => x && arr.indexOf(x) === i && !used.has(x) && ![...used].some(n => x.startsWith(n + '/')));
 
     /* تبويبات صالحة فقط */
     this.data.tabs = (Array.isArray(raw.tabs) ? raw.tabs : [])

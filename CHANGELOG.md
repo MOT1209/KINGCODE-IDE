@@ -3,6 +3,33 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.2.0] — 2026-11-03
+
+Phase 3, step 4 (virtual filesystem, A-03) + start of Phases 4–5 (explorer, accessibility).
+
+### Added
+
+- **Folders.** File names are virtual paths (`src/lib/app.js`). `STATE` gained `addFolder / renameFolder / removeFolder / folderPaths / filesInFolder`; `addFile`/`renameFile` accept paths (a rename can move a file between folders). Empty folders are stored explicitly (`folders` in the persisted state); non-empty folders are derived from file paths. File/folder clashes (a file named like a folder or used as an ancestor) are rejected for user actions and auto-resolved for imports/legacy data (`U.resolveName`: exact duplicates get `-2`, `-3`…, clashes flatten `a/b.js` → `a-b.js`). Paths are sanitized per segment (`U.safePath`: no `.`/`..`/empty segments, depth ≤ 8, length ≤ 200), so a path can never escape the project.
+- **Explorer tree** (`js/list.js`): folders first then files, collapsible (state persisted), folder actions (new file here, sub-folder, rename/move, delete with contents count), **filter box** (ancestors auto-expanded, Esc clears), WAI-ARIA tree keyboard model (↑/↓/Home/End, Enter/Space, ←/→ by text direction), actions float over the row on hover/focus/active instead of truncating names. New commands: «مجلد جديد» (palette + sidebar button).
+- **Preview resolves paths**: relative (`css/a.css`), parent (`../shared/b.js`) and project-root (`/x.js`) references from an HTML file inside a folder; external/`data:`/`//cdn` URLs are never replaced; basename fallback keeps old flat projects working.
+- Tabs show the file name (full path in the tooltip; `dir/name` only when two open tabs share a name).
+
+### Fixed (accessibility — F-11, F-12)
+
+- Every button now has an accessible name (toolbar, sidebar, burger and mobile quick bar, file/folder actions); `#cmd-input` and `#prompt-input` are labelled; the file list is a real `tree` (`treeitem`, `aria-level`, `aria-expanded`, `aria-selected`); palette results are `role=option` with `aria-selected`.
+- **Keyboard trap removed**: `Tab` in the editor indents (a multi-line selection is indented as a block, `Shift+Tab` outdents) and **`Esc` leaves the editor** so the next `Tab` moves on (WCAG 2.1.2).
+- Command palette showed at most 14 results (with > 14 files the commands were unreachable); now 60, scrollable.
+- `KC.extOf/langFor` ignore dots in folder names (`dir.v2/readme` has no extension).
+- Downloading a nested file uses its base name.
+
+### Tests
+
+- Unit: 30 core (+9: paths, folder CRUD, clash rules, move, persistence of empty folders, hydrate clash repair) + 11 preview (+3: nested/relative/absolute/external resolution). E2E: **36** (+10: tree rows/levels/collapse persisted, new-folder button + persistence + clash message, rename/delete folder flows, filter, nested preview run, export→import round trip of paths, tree keyboard model, accessible names/roles, Tab/Esc editor behavior, full palette).
+
+### Meta
+
+- Version 1.2.0 (`KC.version`, SW cache `kingcode-v1.2.0`, `package.json`).
+
 ## [1.1.0] — 2026-11-03
 
 Phase 3, step 3 of `docs/audit/ARCHITECTURE_AUDIT.md` §4: asynchronous storage layer (A-01).

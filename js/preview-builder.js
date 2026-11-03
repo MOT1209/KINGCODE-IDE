@@ -18,11 +18,11 @@ const PreviewBuilder = {
 
     /* الملف النشط إن كان HTML، وإلا أول HTML في المشروع (index.html أولًا) */
     const active = files.find(f => f.id === activeId) || null;
-    if (active && KC.extOf(active.name) === 'html') return this.inject(active.content, files, opts);
+    if (active && KC.extOf(active.name) === 'html') return this.inject(active.content, files, Object.assign({}, opts, { baseDir: U.dirName(active.name) }));
 
     const index = files.find(f => f.name.toLowerCase() === 'index.html') ||
       files.find(f => KC.extOf(f.name) === 'html');
-    if (index) return this.inject(index.content, files, opts);
+    if (index) return this.inject(index.content, files, Object.assign({}, opts, { baseDir: U.dirName(index.name) }));
 
     /* لا HTML: غلاف لعرض CSS/JS/MD النشط */
     return this.fallback(active || files[0]);
@@ -60,13 +60,26 @@ const PreviewBuilder = {
     const byName = new Map();
     files.forEach(f => byName.set(f.name.toLowerCase(), f));
 
-    const mapFor = href => {
+    /* حل المسار النسبي لمستند HTML: ./ و ../ ومسارات تبدأ بـ «/» (جذر المشروع)؛ وإن لم يوجد يُجرَّب اسم الملف المجرد */
+    const baseDir = opts.baseDir || '';
+    const resolve = href => {
       if (!href) return null;
-      let k = href.split(/[?#]/)[0].trim().toLowerCase();
-      k = k.replace(/^\.?\//, '');
-      if (/^https?:\/\//i.test(k)) return null; /* خارجي: غير مدعوم (المعاينة بلا شبكة) */
-      if (byName.has(k)) return byName.get(k);
-      return byName.get(k.split('/').pop()) || null;
+      let k = href.split(/[?#]/)[0].trim();
+      if (!k || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(k)) return null; /* خارجي (http:, data:, //cdn) */
+      const parts = k.startsWith('/') ? [] : (baseDir ? baseDir.split('/') : []);
+      for (const seg of k.split('/')) {
+        if (!seg || seg === '.') continue;
+        if (seg === '..') { if (!parts.length) return null; parts.pop(); } else parts.push(seg);
+      }
+      return parts.join('/').toLowerCase();
+    };
+    const mapFor = href => {
+      const key = resolve(href);
+      if (!key) return null;
+      if (byName.has(key)) return byName.get(key);
+      const base = key.split('/').pop();
+      for (const [n, f] of byName) if (n.split('/').pop() === base) return f; /* احتياط: اسم الملف المجرد */
+      return null;
     };
 
     let out = opts.bridge === false ? content : this.bridge() + content;

@@ -30,6 +30,7 @@ const Commands = {
 
 Commands.add({ id: 'ui.palette', label: 'لوحة الأوامر (بحث وفتح)', group: 'التحكم', hint: 'Ctrl+P', run: () => UI.openCommandPalette() });
 Commands.add({ id: 'files.new', label: 'ملف جديد', group: 'ملفات', hint: '＋', run: () => FILES.newFile() });
+Commands.add({ id: 'files.newFolder', label: 'مجلد جديد', group: 'ملفات', run: () => FILES.newFolder() });
 Commands.add({ id: 'files.save', label: 'حفظ الملف الحالي', group: 'ملفات', hint: 'Ctrl+S', run: () => FILES.saveFile(STATE.data.activeId) });
 Commands.add({ id: 'files.saveAll', label: 'حفظ كل الملفات', group: 'ملفات', run: async () => {
   STATE.files().forEach(f => STATE.markDirty(f.id, false));
@@ -124,7 +125,7 @@ const PALETTE = {
       items.push({ kind: 'cmd', label: c.label, sub: c.group, meta: c.hint, icon: '⚡', run: c.run });
     });
 
-    return items.slice(0, 14);
+    return items.slice(0, 60);
   },
 
   refresh() {
@@ -142,6 +143,8 @@ const PALETTE = {
         const li = document.createElement('li');
         li.className = 'cmd-item' + (i === this.sel ? ' selected' : '');
         li.dataset.index = i;
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', String(i === this.sel));
         li.innerHTML = `
           <span class="cmd-ico">${it.icon}</span>
           <span class="cmd-label" dir="auto">${U.escapeHtml(it.label)}</span>
@@ -160,6 +163,7 @@ const PALETTE = {
     this.sel = (this.sel + dir + this.items.length) % this.items.length;
     U.$$('li.cmd-item', this.results).forEach((li, i) => {
       li.classList.toggle('selected', i === this.sel);
+      li.setAttribute('aria-selected', String(i === this.sel));
     });
     const selEl = U.$('li.selected', this.results);
     if (selEl) selEl.scrollIntoView({ block: 'nearest' });
@@ -194,6 +198,7 @@ const UI = {
     U.$('#btnSplitPreview')?.addEventListener('click', () => UI.togglePreview());
     U.$('#btnConsoleToggle')?.addEventListener('click', () => UI.toggleConsole());
     U.$('#btnNewFile')?.addEventListener('click', () => FILES.newFile());
+    U.$('#btnNewFolder')?.addEventListener('click', () => FILES.newFolder());
     U.$('#btnImportFile')?.addEventListener('click', () => FILES.importFiles());
     U.$('#btnExport')?.addEventListener('click', () => FILES.exportProject());
     U.$('#btnImport')?.addEventListener('click', () => FILES.importProject());
@@ -201,6 +206,7 @@ const UI = {
     /* أزرار معرَّفة بـ data-action (بديل onclick المضمَّن — يسمح بسياسة CSP بلا 'unsafe-inline' للسكربت) */
     const ACTIONS = {
       'files.new': () => FILES.newFile(),
+      'files.newFolder': () => FILES.newFolder(),
       'files.exportHTML': () => FILES.exportProjectHTML(),
       'preview.refresh': () => PREVIEW.refresh(),
       'ui.togglePreview': () => UI.togglePreview(),
@@ -580,6 +586,7 @@ const UI = {
     burger.className = 'btn btn-icon edge-toggle';
     burger.innerHTML = '☰';
     burger.setAttribute('title', 'الشريط الجانبي');
+    burger.setAttribute('aria-label', 'إظهار أو إخفاء الشريط الجانبي');
     burger.addEventListener('click', () => UI.toggleSidebar());
     U.$('.app-container').prepend(burger);
 
@@ -587,10 +594,10 @@ const UI = {
     const bar = document.createElement('div');
     bar.className = 'mobile-quickbar';
     bar.innerHTML =
-      '<button class="btn btn-icon" title="الشريط الجانبي">☰</button>' +
-      '<button class="btn btn-icon" title="الملف السابق">⬅</button>' +
-      '<button class="btn btn-icon" title="الملف التالي">➡</button>' +
-      '<button class="btn btn-icon" title="الإعدادات">⚙️</button>';
+      '<button class="btn btn-icon" title="الشريط الجانبي" aria-label="الشريط الجانبي">☰</button>' +
+      '<button class="btn btn-icon" title="الملف السابق" aria-label="الملف السابق">⬅</button>' +
+      '<button class="btn btn-icon" title="الملف التالي" aria-label="الملف التالي">➡</button>' +
+      '<button class="btn btn-icon" title="الإعدادات" aria-label="الإعدادات">⚙️</button>';
     const [b1, b2, b3, b4] = bar.children;
     b1.addEventListener('click', () => UI.toggleSidebar());
     b2.addEventListener('click', () => TABS.cycle(-1));

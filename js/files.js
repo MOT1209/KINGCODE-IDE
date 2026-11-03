@@ -9,9 +9,7 @@ const FILES = {
 
   /** أسماء ملفات العرض UTC */
   _reservedFor(r) {
-    let n = U.safeFileName(r);
-    if (!n) n = 'untitled';
-    return n;
+    return U.safePath(r) || 'untitled';
   },
 
   /* ---------- الإمداد الأساسي (الواجهة فقط؛ الثوابت في STATE) ---------- */
@@ -19,7 +17,8 @@ const FILES = {
   REASONS: {
     invalid: ['اسم الملف غير صالح ✋', 'warn'],
     limit: ['بلغت الحد الأقصى من الملفات (' + KC.limits.maxFiles + ') ⚠️', 'warn'],
-    duplicate: ['يوجد ملف بنفس الاسم 📛', 'warn']
+    duplicate: ['يوجد ملف أو مجلد بنفس الاسم 📛', 'warn'],
+    conflict: ['يتعارض الاسم مع مجلد أو ملف موجود (ملف ومجلد لا يشتركان في المسار) 📛', 'warn']
   },
 
   create(name, content, { silent = false } = {}) {
@@ -43,6 +42,7 @@ const FILES = {
     const r = STATE.renameFile(id, this._reservedFor(newName));
     if (!r.ok) {
       if (r.reason === 'duplicate') UI.toast('الاسم محجوز لملف آخر 📛', 'warn');
+      else if (r.reason === 'conflict') UI.toast(this.REASONS.conflict[0], 'warn');
       else if (r.reason === 'invalid') UI.toast('الاسم غير صالح ✋', 'warn');
       return;
     }
@@ -86,15 +86,74 @@ const FILES = {
   duplicate(id) {
     const f = STATE.file(id);
     if (!f) return;
-    const ext = KC.extOf(f.name);
-    const stem = ext ? f.name.slice(0, -(ext.length + 1)) : f.name;
-    const name = STATE.uniqueName(stem + ' copy' + (ext ? '.' + ext : ''));
+    const dir = U.dirName(f.name);
+    const base = U.baseName(f.name);
+    const ext = KC.extOf(base);
+    const stem = ext ? base.slice(0, -(ext.length + 1)) : base;
+    const name = STATE.uniqueName((dir ? dir + '/' : '') + stem + ' copy' + (ext ? '.' + ext : ''));
     return this.create(name, f.content);
   },
 
-  newFile() {
-    UI.prompt({ title: 'ملف جديد', placeholder: 'مثال: app.js أو style.css' }, name => {
-      if (name) this.create(name);
+  newFile(folder) {
+    const dir = typeof folder === 'string' ? folder : '';
+    UI.prompt({ title: dir ? 'ملف جديد داخل ' + dir : 'ملف جديد', value: dir ? dir + '/' : '', placeholder: 'مثال: app.js أو src/style.css' }, name => {
+      if (name && name !== dir + '/') this.create(name);
+    });
+  },
+
+  /* ---------- المجلدات ---------- */
+
+  newFolder(parent) {
+    const dir = typeof parent === 'string' ? parent : '';
+    UI.prompt({ title: dir ? 'مجلد جديد داخل ' + dir : 'مجلد جديد', value: dir ? dir + '/' : '', placeholder: 'مثال: src أو assets/img' }, name => {
+      if (!name || name === dir + '/') return;
+      const r = STATE.addFolder(name);
+      if (!r.ok) { const m = this.REASONS[r.reason] || this.REASONS.invalid; UI.toast(m[0], m[1]); return; }
+      FILE_LIST.render();
+      UI.toast('تم إنشاء المجلد «' + r.path + '» 📁');
+      STATE.emit('files:change', null);
+    });
+  },
+
+  renameFolderUI(path) {
+    UI.prompt({ title: 'إعادة تسمية/نقل المجلد «' + path + '»', value: path }, name => {
+      if (!name || name === path) return;
+      const r = STATE.renameFolder(path, name);
+      if (!r.ok) {
+        const msg = { inside: 'لا يمكن نقل مجلد إلى داخل نفسه ✋', conflict: this.REASONS.conflict[0], duplicate: 'يوجد مجلد بهذا الاسم 📛', invalid: 'الاسم غير صالح ✋' }[r.reason];
+        if (msg) UI.toast(msg, 'warn');
+        return;
+      }
+      r.ids.forEach(id => { STATE.emit('file:renamed', id); }); /* يعيد المحرر بناء Doc لتحديث نمط اللغة */
+      FILE_LIST.render();
+      TABS.render();
+      UI.updateStatusFile();
+      PREVIEW.schedule(true);
+      UI.toast('تم نقل المجلد إلى «' + STATE.folderPaths().find(p => p === U.safePath(name)) + '» (' + r.ids.length + ' ملف)');
+      STATE.emit('files:change', null);
+    });
+  },
+
+  removeFolderUI(path) {
+    const n = STATE.filesInFolder(path).length;
+    if (n >= STATE.files().length) { UI.toast('لا يمكن حذف مجلد يحوي كل ملفات المشروع 🔒', 'warn'); return; }
+    UI.confirm({
+      title: 'حذف المجلد؟',
+      message: 'سيمسح المجلد «' + path + '» و' + n + ' ملف بداخله نهائيًا ولا يمكن استرجاعها. هل تريد المتابعة؟',
+      danger: true,
+      okLabel: 'حذف نهائي'
+    }, ok => {
+      if (!ok) return;
+      const r = STATE.removeFolder(path);
+      if (!r.ok) return;
+      r.removed.forEach(f => { if (EDITOR.docs.has(f.id)) EDITOR.docs.delete(f.id); });
+      FILE_LIST.render();
+      TABS.render();
+      if (r.activeId) EDITOR.open(r.activeId);
+      PREVIEW.schedule(true);
+      UI.updateStatusFile();
+      UI.toast('تم حذف المجلد «' + path + '» 🗑');
+      STATE.emit('files:change', null);
     });
   },
 
@@ -130,7 +189,7 @@ const FILES = {
     if (!f) return;
     const mime = { 'html': 'text/html', 'css': 'text/css', 'js': 'text/javascript', 'mjs': 'text/javascript' }
       [KC.extOf(f.name)] || 'text/plain';
-    if (U.downloadText(f.name, f.content, mime)) UI.toast('تم تنزيـل «' + f.name + '» ⤓');
+    if (U.downloadText(U.baseName(f.name), f.content, mime)) UI.toast('تم تنزيـل «' + f.name + '» ⤓');
   },
 
   exportProject() {

@@ -30,7 +30,10 @@ const EDITOR = {
       cursorBlinkRate: 550,
       hintOptions: { completeSingle: false },
       extraKeys: {
-        'Tab': cm => cm.replaceSelection(' '.repeat(st.tabSize), 'end'),
+        /* Tab: يزيح التحديد متعدد الأسطر أو يدرج مسافات؛ Shift+Tab يعكس؛ Esc يُخرج التركيز من المحرر (WCAG 2.1.2: لا فخ لوحة مفاتيح) */
+        'Tab': cm => (cm.somethingSelected() ? cm.indentSelection('add') : cm.replaceSelection(' '.repeat(cm.getOption('tabSize')), 'end')),
+        'Shift-Tab': cm => cm.indentSelection('subtract'),
+        'Esc': cm => { if (cm.state.completionActive) { cm.state.completionActive.close(); } else { cm.getInputField().blur(); } },
         'Ctrl-S': () => Commands.run('files.save'),
         'Cmd-S': () => Commands.run('files.save'),
         'Ctrl-P': () => Commands.run('ui.palette'),

@@ -94,7 +94,7 @@ Severity scale: Critical = silent data loss/RCE in common flow; High = data loss
 ### F-10 — Startup toast noise — **LOW**
 `APP.checkForUpdate()` shows "Checking for updates…" on every launch (visible in phone screenshot, overlaps console area).
 
-### F-11 — Accessibility gaps — **LOW** (partly unverified)
+### F-11 — Accessibility gaps — **LOW** (partly unverified) — **STATUS: Tab trap, unnamed buttons/inputs, tree/option roles fixed in 1.2.0 (E2E-guarded); contrast and screen-reader flow still unmeasured**
 - `Tab` inside editor inserts spaces and cannot leave the editor by keyboard (WCAG 2.1.2 risk) — code-confirmed.
 - 23 `btn-icon` buttons rely on `title` only (no `aria-label`) — measured (probe3).
 - `role=option` rows contain nested buttons; palette `li` lack `role=option`.

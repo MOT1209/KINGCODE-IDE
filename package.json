@@ -1,6 +1,6 @@
 {
   "name": "kingcode-ide",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "kingCode — a browser-based Arabic RTL code editor as a PWA. Vanilla ES6+, CodeMirror vendored locally, zero runtime dependencies (Playwright is a dev-only test dependency).",
   "private": true,
   "license": "MIT",
