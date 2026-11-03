@@ -45,7 +45,13 @@ const STORE = {
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
         if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' });
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        const db = req.result;
+        /* تبويب آخر يحذف/يرقّي قاعدة البيانات (مسح بيانات الموقع، ترقية بنية): أغلق اتصالنا كي لا نحجبه؛
+           تُعاد فتحها عند الحفظ التالي وتُكتب كل الملفات من جديد (_known فارغة) */
+        db.onversionchange = () => { try { db.close(); } catch (_) { /* ignore */ } if (this._db === db) { this._db = null; this._known = new Set(); } };
+        resolve(db);
+      };
       req.onerror = () => reject(req.error || new Error('idb open error'));
       req.onblocked = () => reject(new Error('idb open blocked'));
     });
@@ -120,6 +126,7 @@ const STORE = {
     const savedAt = Date.now();
     if (this.kind === 'idb') {
       try {
+        if (!this._db) { this._db = await this._openIdb(); this._known = new Set(); } /* أُغلق بـ versionchange: أعد الفتح */
         const all = changedIds === null;
         const changed = new Set(changedIds || []);
         const present = new Set(snapshot.files.map(f => f.id));
