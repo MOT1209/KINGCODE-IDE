@@ -82,7 +82,7 @@ Capacity: a 16 MB project persists and reloads (the old blob could not hold it).
 | `npm test` (static guards + unit) | static **19/19**, unit core **30/30**, unit preview **11/11** — all PASS |
 | `npx eslint .` | clean (0 errors, 0 warnings) |
 | `node --check` on `js/*.js tools/*.js tools/unit/*.js service-worker.js eslint.config.js` | all OK |
-| `npm run test:e2e` | **46/46 PASS** — three consecutive runs recorded in §10 of `IMPLEMENTATION_PROGRESS.md` |
+| `npm run test:e2e` | **46/46 PASS** — three consecutive runs, all 46/46 (recorded in `IMPLEMENTATION_PROGRESS.md`) |
 | Reference/precache check | 52 `index.html` references, 59 precached assets, all manifest icons exist; nothing missing |
 | Secrets scan (regex over tracked non-vendor files) | no credentials; one fixture string (`/etc/passwd` in a traversal test) |
 | Accidental deletions vs `45f7284` | none (19 added, 24 modified, 0 deleted/renamed) |
