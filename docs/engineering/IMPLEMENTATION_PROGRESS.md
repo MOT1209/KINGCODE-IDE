@@ -45,7 +45,7 @@ F-01…F-09, **F-14** (editor showed the old document after import), F-10…F-13
 
 ## Remaining problems / limitations
 
-See `FINAL_ENGINEERING_REPORT.md` §12. Highest priority: nothing was tested in Firefox, Safari, Android WebView or on real devices; no terminal/Git/AI/accounts/sync exist; ES modules and CodeMirror 6 deferred.
+See `FINAL_ENGINEERING_REPORT.md` §12. Highest priority: real Safari/iOS, Android WebView and installed-app mode are untested (Firefox and WebKit run in CI since 1.4.2); no terminal/Git/AI/accounts/sync exist; ES modules and CodeMirror 6 deferred.
 
 ## Next actions
 

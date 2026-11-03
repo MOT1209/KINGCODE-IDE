@@ -34,6 +34,6 @@ Please describe the impact and reproduction steps **privately** to the maintaine
 - **Style policy.** `style-src 'unsafe-inline'` remains because the UI uses inline `style` attributes.
 - **Headers a static app cannot set.** `frame-ancestors`/`X-Frame-Options`, `Permissions-Policy`, HSTS must be set by the host (`docs/security/HOSTING_HEADERS.md`); GitHub Pages cannot set them.
 - **Multi-tab.** Two tabs editing the same project are last-writer-wins.
-- **Browser coverage.** Security behaviour was verified in Chromium only. The sandbox handshake (`document.write` into an opaque-origin frame) and IndexedDB paths should be re-tested in Firefox and Safari before relying on them.
+- **Browser coverage.** The security and storage E2E tests run in CI on Playwright's Chromium, Firefox and WebKit builds (Linux). That is not the same as real Safari on iOS/macOS, Android WebView or installed-app mode, which remain untested.
 - **CodeMirror 5** (vendored) is in maintenance mode; its exact version and advisory status were not independently verified.
 - **Future features.** There is no terminal, Git, AI or extension system. Before adding any of them, follow the threat-model rule in `docs/architecture/MULTI_PLATFORM_STRATEGY.md` §3 (secrets never in client storage, explicit user consent for writes, sandboxed extensions with declared permissions).

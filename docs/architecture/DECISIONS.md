@@ -17,8 +17,8 @@ Short records of decisions that shape the codebase. Format: context → decision
 ## ADR-3 — Preview runs in `sandbox.html` with its own CSP (v1.0.8)
 - **Context.** A `srcdoc` iframe inherits the shell's CSP, which forced `script-src 'unsafe-inline'` on the whole app.
 - **Decision.** The iframe loads `sandbox.html` (opaque origin, `allow-scripts allow-modals`, CSP `default-src 'none'`, inline script/style only) and receives the document via a nonce-checked `postMessage`. The shell CSP no longer allows inline scripts.
-- **Consequences.** Previews have no network by design (documented in README). Verified in Chromium only.
-- **Revisit** if previews need controlled network access (would require a per-project opt-in and a new policy) and after testing in Firefox/Safari.
+- **Consequences.** Previews have no network by design (documented in README). E2E-verified on Chromium, Firefox and WebKit (Playwright builds); real Safari/iOS and Android WebView are untested. WebKit masks uncaught-error details inside the sandboxed preview (the bridge explains this to the user).
+- **Revisit** if previews need controlled network access (would require a per-project opt-in and a new policy) and after testing on real Safari/iOS.
 
 ## ADR-4 — Defer the migration to ES modules (decision: **not now**)
 - **Context.** The brief asks for modular structure and the audit proposed native ES modules (`<script type="module">`, still no bundler) to remove global coupling and enable Node-native unit tests.

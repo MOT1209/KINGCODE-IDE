@@ -128,8 +128,11 @@ const PreviewBuilder = {
     };
   });
   window.onerror = function(msg, src, line, col, err) {
-    try { window.parent.postMessage({ __kingcode: true, type: 'console', level: 'error',
-      parts: [msg + '  @ سطر ' + line + (col ? ':' + col : '')] }, '*'); } catch (e) {}
+    /* WebKit/Safari يخفي رسالة وسطر الخطأ في المستندات المعزولة (أصل معتّم) فيصل «Script error.» بلا تفاصيل */
+    var text = (!err && /^script error\\.?$/i.test(String(msg)))
+      ? String(msg) + '  (المتصفح يخفي تفاصيل الخطأ داخل المعاينة المعزولة — استخدم console.log أو try/catch، أو Chrome/Firefox لرؤية الرسالة والسطر)'
+      : msg + '  @ سطر ' + line + (col ? ':' + col : '');
+    try { window.parent.postMessage({ __kingcode: true, type: 'console', level: 'error', parts: [text] }, '*'); } catch (e) {}
   };
   window.addEventListener('unhandledrejection', function(ev) {
     try { window.parent.postMessage({ __kingcode: true, type: 'console', level: 'error',

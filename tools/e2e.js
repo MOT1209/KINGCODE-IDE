@@ -137,7 +137,9 @@ async function importJson(page, obj) {
     await test('WF: preview renders and shows runtime errors in console', async ({ page }) => {
       await typeAll(page, '<script>console.log("hi-preview");throw new Error("boom")</script>');
       await waitConsole(page, /hi-preview/);
-      await waitConsole(page, /boom/);
+      /* Chromium/Firefox يعطيان رسالة الخطأ؛ WebKit يخفيها («Script error.») فيُشرَح السبب للمستخدم (انظر الجسر) */
+      await waitConsole(page, BROWSER_NAME === 'webkit' ? /Script error/ : /boom/);
+      assert((await page.$$('#console-output .lvl-error')).length >= 1, 'no error-level row in the console');
     }, browser, base);
 
     await test('WF: responsive — no horizontal overflow at 390/820/1366', async ({ page }) => {
