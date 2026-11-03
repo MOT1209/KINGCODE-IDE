@@ -15,7 +15,7 @@ Cross-browser verification: the E2E suite now runs on **Chromium, Firefox and We
 ### Tests
 
 - `tools/e2e.js` runs against any engine (`KC_BROWSER=chromium|firefox|webkit`). Test-suite fixes found by the new engines (not product bugs): Firefox downloads `manifest.json` instead of navigating to it (tests now use a neutral same-origin page); WebKit reports the sandbox's blocked top-navigation attempt as a page error (expected, now filtered); a `waitConsole` helper reports the real console text when it times out.
-- CI results on the pull request head: Chromium 48/48, Firefox 48/48; WebKit 47/48 before this fix (the masked error above), see the PR for the final run. Unit 44 (core 32, preview 12), E2E 48.
+- CI on PR head `3e8ee1b` (GitHub Actions run 41683976425): `verify`, `lint`, `e2e (chromium)`, `e2e (firefox)`, `e2e (webkit)` all success — 48/48 in each browser. Earlier on the same PR: Firefox failed 3 tests (test-setup: manifest.json download), WebKit failed 4 (two migration tests from the unhandled `versionchange`, a harness page-error, and the masked error above) — all fixed. Unit 44 (core 32, preview 12), E2E 48.
 
 ### Meta
 

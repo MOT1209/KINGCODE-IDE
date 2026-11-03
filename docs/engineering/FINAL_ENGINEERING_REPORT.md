@@ -1,6 +1,6 @@
-# Final engineering report — KINGCODE IDE foundation (v1.0.6 → v1.4.1)
+# Final engineering report — KINGCODE IDE foundation (v1.0.6 → v1.4.2)
 
-_Baseline: commit `45f7284` (v1.0.6). Final: v1.4.1. Everything marked "verified" was run by me in this environment (Node v22, headless Chromium via Playwright, Linux container). Anything not verified is listed in §12._
+_Baseline: commit `45f7284` (v1.0.6). Final: v1.4.2 (cross-browser CI added after the first final report; see CHANGELOG 1.4.2). Everything marked "verified" was run by me in this environment (Node v22, headless Chromium via Playwright, Linux container). Anything not verified is listed in §12._
 
 ## 1. Executive summary
 
@@ -8,7 +8,7 @@ The repository was a small, tidy vanilla-JS PWA whose earlier audit documents we
 
 Over four phases I fixed those defects with a regression test each, moved persistence to IndexedDB with differential writes, hardened the security model (no inline scripts in the shell, preview isolated in its own CSP page), introduced a single write path for project files, added folders, rebuilt the phone/tablet layouts, and replaced "16 dev-server checks" with **19 static guards + 43 unit tests + 47 real-browser E2E tests + ESLint** in CI. No runtime dependencies were added.
 
-Not done, by design or for lack of means: a real terminal, Git, AI, accounts, cloud sync, extensions (none existed; a plan is in `docs/architecture/MULTI_PLATFORM_STRATEGY.md`), the ES-modules migration (deliberately deferred, ADR-4), and any testing in Firefox/Safari/real phones.
+Not done, by design or for lack of means: a real terminal, Git, AI, accounts, cloud sync, extensions (none existed; a plan is in `docs/architecture/MULTI_PLATFORM_STRATEGY.md`), the ES-modules migration (deliberately deferred, ADR-4), and any testing on real Safari/iOS, Android WebView or real phones (Firefox and WebKit are covered in CI since v1.4.2).
 
 ## 2. Initial repository condition (verified, `45f7284`)
 
@@ -102,7 +102,7 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 
 ## 12. Remaining limitations (honest list)
 
-- **Not tested:** Firefox, Safari/iOS, Android WebView, real phones/tablets (only Chromium with emulated viewports/touch), installed-app (standalone) mode, screen readers, colour contrast, memory use, multi-tab concurrent editing.
+- **Not tested:** real Safari/iOS, Android WebView, real phones/tablets (emulated viewports/touch only; Playwright's Firefox and WebKit builds on Linux run the full suite in CI since v1.4.2 — not the same as the shipping browsers on those devices), installed-app (standalone) mode, screen readers, colour contrast, memory use, multi-tab concurrent editing.
 - **Not built (never existed):** terminal, Git/GitHub integration, AI assistant/agents, authentication, cloud sync, extensions/marketplace, Android/Windows packages. `docs/architecture/MULTI_PLATFORM_STRATEGY.md` is a plan; its statements about store policies and third-party tool versions are **my assessment and need verification** before anyone relies on them.
 - **Deliberately deferred:** ES modules/bundler (ADR-4), CodeMirror 6 (ADR-5).
 - **Known trade-offs:** preview has no network by design; `style-src 'unsafe-inline'`; plaintext local storage; IndexedDB flush on page exit is best-effort through a journal (tested for reload, not for every crash scenario); a deleted file can reappear after a crash that skips the journal (journal carries changes, not deletions); 60-file and 2,000,000-character limits; last-writer-wins across tabs.
@@ -111,7 +111,7 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 
 ## 13. Recommended next development phase
 
-1. **Get real-device and cross-browser evidence:** run the E2E suite on Firefox and WebKit via Playwright, and manually on an Android phone and an iPad (storage, `sandbox.html` handshake, service-worker update).
+1. **Get real-device evidence:** the suite already passes on Chromium, Firefox and WebKit in CI (v1.4.2); next test manually on an Android phone and an iPad (storage, `sandbox.html` handshake, service-worker update, installed mode).
 2. **Decide product scope** (questions in `MULTI_PLATFORM_STRATEGY.md` §7), then ship the cheapest distribution step first (stable origin + headers → Android TWA / Windows MSIX from the PWA).
 3. **Introduce the `FS` adapter** over the existing `STATE`/`STORE` seams (File System Access API on Chromium desktop) — prerequisite for Git and native shells.
 4. Only then consider Git (isomorphic-git), a Tauri shell with a real PTY terminal, and — with a backend/proxy and a threat model first — AI and sync.
