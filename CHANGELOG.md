@@ -3,6 +3,15 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [Unreleased]
+
+### Security / tooling (no application code changed)
+
+- CI: `permissions: contents: read` on the workflow (least privilege).
+- `package.json`: npm `overrides` for `minimatch ^11.0.4` — clears 5 moderate dev-only advisories (GHSA-g3hv-75wg-m249); `npm audit` → 0, `eslint .` clean.
+- Documentation re-audit against `fd445f2`: root `SECURITY_AUDIT.md` and `IMPLEMENTATION_PROGRESS.md`, `docs/engineering/PHASE_0_AUDIT.md`, README rewritten sections, stale test counts fixed, feature assessment in `docs/architecture/MULTI_PLATFORM_STRATEGY.md` §8.
+- **Documented, not fixed:** the live preview does not load offline in Chromium (F-02). A service-worker workaround was tried and did not work (reverted).
+
 ## [1.5.0] — 2026-11-03
 
 Store readiness (Google Play via TWA, Microsoft Store via MSIX) — the PWA side. **Nothing was submitted, built into an APK/AAB/MSIX, signed or tested on a device**; see `docs/store/README.md` for what is done and what only the owner can do.

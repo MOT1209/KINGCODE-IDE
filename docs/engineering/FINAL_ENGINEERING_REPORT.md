@@ -121,3 +121,13 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 
 - **v1.4.2:** the E2E suite runs on Chromium, Firefox and WebKit (Playwright builds) in CI; the first matrix run found 7 failures (4 test-setup issues, a real IndexedDB `versionchange` robustness gap, a WebKit behaviour difference — masked `Script error.` — now explained to the user); all fixed, then 48/48 on all three engines.
 - **v1.5.0:** store-readiness work for the PWA side (privacy page, screenshots, manifest, hosting headers, `npm run store:check`, `docs/store/`). Reviewing the generated screenshots exposed a real bug (explorer highlighted the wrong file after tab switches), fixed with a regression test confirmed red on the old code. **Nothing was submitted, built into an APK/AAB/MSIX, signed, deployed or tested on a device;** store policies and tool behaviour in `docs/store/` are my assessment and marked "verify". Remaining owner-only work: public origin, developer accounts, signing keys, device tests, Play feature graphic.
+
+## Addendum — documentation & security re-audit (post-1.5.0, branch `ccr-8e98767f-hg3383`)
+
+Full details: `docs/engineering/PHASE_0_AUDIT.md`, `/SECURITY_AUDIT.md`, `/IMPLEMENTATION_PROGRESS.md`. **Counts in §9 above are historical; current verified counts are static 19, unit 44 (32+12), E2E 50, `store:check` 53, ESLint clean** (executed again in this session; Chromium only for E2E).
+
+- Corrections: "PR #3 pending" is obsolete (merged); stale 43-unit/47-E2E figures updated elsewhere; README rewritten where it contradicted the code (storage, limits, structure, deployment).
+- New verified defect: live preview fails offline in Chromium (iframe sandboxed without `allow-same-origin` bypasses the service worker). A SW workaround was implemented, its test failed, and it was **reverted**; it remains open.
+- Fixed: CI token permissions; 5 dev-only `npm audit` advisories via override.
+- Not verifiable here: live deployment (unreachable; no matching Vercel project), Firefox/WebKit locally, real devices, store consoles.
+- No GitHub Release exists for v1.5.0.

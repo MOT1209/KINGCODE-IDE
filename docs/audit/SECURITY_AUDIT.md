@@ -1,3 +1,5 @@
+> **HISTORICAL (commit `45f7284`, v1.0.6).** Current audit: `/SECURITY_AUDIT.md` (commit `fd445f2`).
+
 # Security Audit — KINGCODE IDE (Phase 0)
 
 Audited commit `45f7284`, 2026-11-03. Threat model: a user opens untrusted project files (import/paste) in a client-only PWA; the dev server is localhost-only. There is no backend, no auth, no secrets, no network calls from app code.
