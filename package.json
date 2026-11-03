@@ -23,7 +23,8 @@
     "test": "node tools/ci-smoke.js && node tools/unit/core.test.js && node tools/unit/preview.test.js",
     "test:unit": "node tools/unit/core.test.js && node tools/unit/preview.test.js",
     "test:e2e": "node tools/e2e.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "perf": "node tools/perf.js"
   },
   "keywords": [
     "editor",
