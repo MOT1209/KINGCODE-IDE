@@ -33,7 +33,9 @@ Commands.add({ id: 'files.new', label: 'ملف جديد', group: 'ملفات', h
 Commands.add({ id: 'files.save', label: 'حفظ الملف الحالي', group: 'ملفات', hint: 'Ctrl+S', run: () => FILES.saveFile(STATE.data.activeId) });
 Commands.add({ id: 'files.saveAll', label: 'حفظ كل الملفات', group: 'ملفات', run: () => {
   STATE.files().forEach(f => STATE.markDirty(f.id, false));
-  STATE.persist(); UI.saveFlash(); UI.toast('تم حفظ كل الملفات 💾');
+  STATE.persist();
+  if (STATE.flush()) { UI.saveFlash(); UI.toast('تم حفظ كل الملفات 💾'); }
+  else UI.toast('تعذّر الحفظ: مساحة التخزين ممتلئة — صدِّر المشروع الآن ⚠️', 'error', 6000);
 }});
 Commands.add({ id: 'files.rename', label: 'إعادة تسمية الملف الحالي', group: 'ملفات', run: () => FILES.renameUI(STATE.data.activeId) });
 Commands.add({ id: 'files.download', label: 'تنزيل الملف الحالي', group: 'ملفات', run: () => FILES.download(STATE.data.activeId) });
@@ -62,6 +64,7 @@ Commands.add({ id: 'tabs.next', label: 'التبويب التالي', group: 'ت
 Commands.add({ id: 'tabs.prev', label: 'التبويب السابق', group: 'تبويبات', hint: 'Alt+←', run: () => TABS.cycle(-1) });
 Commands.add({ id: 'app.install', label: 'تثبيت kingCode كتطبيق', group: 'نظام', run: () => UI.promptInstall() });
 Commands.add({ id: 'app.update', label: 'التحقق من تحديثات kingCode', group: 'نظام', run: () => UI.checkForUpdate() });
+Commands.add({ id: 'app.applyUpdate', label: 'تطبيق التحديث الجاهز وإعادة التحميل', group: 'نظام', run: () => APP.applyUpdate() });
 
 /* ---------- لوحة الأوامر (Command Palette) ---------- */
 
@@ -309,6 +312,11 @@ const UI = {
       else if (k === 'o') { e.preventDefault(); FILES.importFiles(); }
     });
 
+    /* نتائج الحفظ + تفريغ الحفظ المعلّق عند مغادرة الصفحة (يمنع ضياع آخر ≤250ms من التعديل) */
+    STATE.on('persisted', res => UI.onPersisted(res));
+    window.addEventListener('pagehide', () => STATE.flush());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') STATE.flush(); });
+
     /* الحفظ بعد ذروة الإنعاش */
     window.addEventListener('beforeunload', e => {
       if (!STATE.settings().autoSave && STATE.data.dirty.size) {
@@ -457,9 +465,28 @@ const UI = {
     U.$('#statusLang').textContent = f ? KC.langFor(f.name).label : '—';
   },
 
-  saveFlash(kind) {
+  /** نتيجة كل كتابة فعلية للتخزين: النجاح يومض «حُفظ»، والفشل حالة دائمة + تنبيه متكرر (كل 10 ث كحد أدنى) */
+  onPersisted(res) {
     const el = U.$('#saveIndicator');
     if (!el) return;
+    if (res && res.ok === false) {
+      el.textContent = '⚠ لم يُحفظ — التخزين ممتلئ';
+      el.classList.remove('saved');
+      el.classList.add('failed');
+      const now = Date.now();
+      if (!this._failToastAt || now - this._failToastAt > 10000) {
+        this._failToastAt = now;
+        UI.toast('مساحة التخزين ممتلئة — تعديلاتك الأخيرة غير محفوظة. صدِّر المشروع الآن ⚠️', 'error', 7000);
+      }
+      return;
+    }
+    if (el.classList.contains('failed')) { el.classList.remove('failed'); el.textContent = '💾 جاهز'; }
+    if (STATE._flash) { STATE._flash = false; this.saveFlash(); }
+  },
+
+  saveFlash(kind) {
+    const el = U.$('#saveIndicator');
+    if (!el || el.classList.contains('failed')) return;
     el.textContent = '✓ حُفظ';
     el.classList.add('saved');
     clearTimeout(this._sv);
@@ -613,7 +640,7 @@ const UI = {
     p.prompt();
     p.userChoice.then(() => { this._deferredPrompt = null; });
   },
-  checkForUpdate() { APP.checkForUpdate(); },
+  checkForUpdate() { APP.checkForUpdate(true); },
 
   /* ---------- dialogs للأقوال ---------- */
 

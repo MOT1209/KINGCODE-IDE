@@ -57,7 +57,8 @@ const PREVIEW = {
    * بناء المستند: اختيار مصدر HTML، حقن CSS/JS، طيّ الكونسول
    * ========================================================= */
 
-  buildDocument() {
+  /** opts.bridge=false: بلا جسر الكونسول (للتصدير المستقل) */
+  buildDocument(opts = {}) {
     const files = STATE.files();
     if (!files.length) {
       return `<!doctype html><meta charset="utf-8">
@@ -68,13 +69,13 @@ const PREVIEW = {
     /* إن تم إصدار الملف الحالي HTML، تُبنى المعاينة من إحتماله */
     const active = STATE.file(STATE.data.activeId);
     if (active && KC.extOf(active.name) === 'html') {
-      return this.inject(active.content, files);
+      return this.inject(active.content, files, opts);
     }
 
     /* لا حلاً أفضل: استخدم أول ملف index.html إن وُجد */
     for (const f of files) {
       if (f.name.toLowerCase() === 'index.html' || KC.extOf(f.name) === 'html') {
-        return this.inject(f.content, files);
+        return this.inject(f.content, files, opts);
       }
     }
 
@@ -111,7 +112,7 @@ const PREVIEW = {
   },
 
   /** الحقن: CSS/JS بالاسم وكلمة الوورد ذات إصدار معتمد */
-  inject(content, files) {
+  inject(content, files, opts = {}) {
     const byName = new Map();
     files.forEach(f => byName.set(f.name.toLowerCase(), f));
 
@@ -130,7 +131,7 @@ const PREVIEW = {
     };
 
     /* 1) حقن الكونسول أولاً */
-    let out = this.injectConsoleBridge(content);
+    let out = opts.bridge === false ? content : this.injectConsoleBridge(content);
 
     /* 2) CSS links */
     out = out.replace(/<link\b[^>]*>/gi, tag => {

@@ -3,6 +3,29 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.0.7] — 2026-11-03
+
+Phase 1 of the audit remediation (data integrity). Each item maps to `docs/audit/REPOSITORY_AUDIT.md`; each has an E2E regression test in `tools/e2e.js`.
+
+### Fixed
+
+- **F-01 — silent loss of files beyond 60 on import/restore.** `U.sanitizeFiles` now enforces `KC.limits.maxFiles`, and the import/restore confirm dialog states exactly how many files will be dropped; `STATE.hydrate` no longer truncates silently.
+- **F-04 — import validation.** Arrays and non-objects are rejected; duplicate names after sanitizing are renamed (`name-2.ext`); `.`/`..`/empty names and files over `KC.limits.maxFileChars` (2,000,000) are dropped; non-text content becomes empty — all reported to the user before confirmation.
+- **F-02 — false "Saved" when storage fails.** Writes report success/failure (`'persisted' {ok}`); failure shows a persistent red status-bar state and repeats the warning (at most every 10 s); the "saved" flash only follows a successful write; manual save reports failure.
+- **F-03 — edits lost on quick reload/navigation.** Pending save is flushed on `pagehide` and `visibilitychange:hidden`.
+- **F-05 — auto-save off now really holds edits back.** While off, persistence writes the last saved content of a dirty file; Ctrl+S commits; re-enabling auto-save commits pending edits.
+- **F-06 — service worker only deletes its own old caches** (`kingcode-cache-*`), never other apps' caches on the same origin.
+- **F-07 — no automatic reload on update.** Removed unconditional `skipWaiting`; the page shows "update ready" and the new command `app.applyUpdate` (palette) flushes, activates and reloads on request. Removed the "checking for updates" toast at every startup (kept for the manual command).
+- **F-08 — standalone HTML export no longer contains the console bridge.**
+
+### Added
+
+- `tools/e2e.js` / `npm run test:e2e`: 15 Chromium (Playwright) tests — core workflows, one regression test per fixed finding, and sandbox/XSS security guards. Playwright is a **devDependency only** (never shipped); CI job added.
+
+### Changed
+
+- Version aligned to 1.0.7 (`KC.version`, SW cache `kingcode-v1.0.7`, `package.json`).
+
 ## [1.0.6] — 2026-11-02
 
 ### Fixed

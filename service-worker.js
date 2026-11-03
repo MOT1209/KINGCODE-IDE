@@ -4,8 +4,9 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.0.6';
-const CACHE_NAME = 'kingcode-cache-' + VERSION;
+const VERSION = 'kingcode-v1.0.7';
+const CACHE_PREFIX = 'kingcode-cache-';
+const CACHE_NAME = CACHE_PREFIX + VERSION;
 
 /** قائمة أصول kingCode (تُخزَّن عند التثبيت) */
 const ASSETS = [
@@ -89,17 +90,17 @@ self.addEventListener('install', event => {
       .then(results => {
         const missed = results.filter(r => r.status === 'rejected').map(r => String(r.reason));
         if (missed.length) console.warn('[kingCode SW] precache incomplete — assets missing:', missed);
-        return self.skipWaiting();
+        /* بلا skipWaiting: التحديث يُفعَّل بطلب المستخدم (APP.applyUpdate) أو عند إغلاق كل النوافذ */
       })
   );
 });
 
-/* ---------- التفعيل: تنظيف النسخ القديمة ---------- */
+/* ---------- التفعيل: تنظيف نسخ kingCode القديمة فقط (لا نمسّ ذاكرات تطبيقات أخرى على نفس الأصل) ---------- */
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+        keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );

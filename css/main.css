@@ -156,6 +156,7 @@ a { color: var(--accent); }
 
 .save-indicator { white-space: nowrap; opacity: 0.9; transition: color 0.2s; }
 .save-indicator.saved { color: var(--ok); }
+.save-indicator.failed { color: var(--danger); font-weight: 700; opacity: 1; }
 
 .net-indicator { white-space: nowrap; }
 .net-indicator.offline { color: var(--warn); }
