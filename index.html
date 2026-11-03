@@ -6,7 +6,8 @@
   <meta name="description" content="kingCode — محرر أكواد احترافي يعمل في المتصفح ويُثبَّت كتطبيق على الهاتف والآيباد والحاسوب، ويشتغل دون إنترنت." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#12253a" id="metaTheme" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <meta name="referrer" content="no-referrer" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -87,7 +88,7 @@
             <div class="editor-empty hidden" id="editorEmpty">
               <div class="empty-glyph">⚡</div>
               <p>لا يوجد ملف مفتوح</p>
-              <button class="btn" onclick="files.newFile()">+ ملف جديد</button>
+              <button class="btn" data-action="files.new">+ ملف جديد</button>
             </div>
           </div>
 
@@ -98,26 +99,26 @@
             <div class="preview-header">
               <span class="preview-title">👁 المعاينة</span>
               <span class="preview-actions">
-                <button class="btn btn-icon" title="تحديث المعاينة (Ctrl+Enter)" onclick="preview.refresh()"
+                <button class="btn btn-icon" title="تحديث المعاينة (Ctrl+Enter)" data-action="preview.refresh"
                         aria-label="تحديث المعاينة">⟳</button>
                 <button class="btn btn-icon" title="فتح الكونسول أو إخفاؤه"
                         aria-label="تبديل الكونسول" id="btnConsoleToggle">🖥</button>
-                <button class="btn btn-icon" title="تنزيل المشروع كملف HTML" onclick="files.exportProjectHTML()"
+                <button class="btn btn-icon" title="تنزيل المشروع كملف HTML" data-action="files.exportHTML"
                         aria-label="تصدير HTML">⤓</button>
-                <button class="btn btn-icon" title="إغلاق المعاينة" onclick="ui.togglePreview()"
+                <button class="btn btn-icon" title="إغلاق المعاينة" data-action="ui.togglePreview"
                         aria-label="إغلاق المعاينة">✕</button>
               </span>
             </div>
             <div class="preview-body">
-              <iframe id="preview-frame" sandbox="allow-scripts allow-modals"
+              <iframe id="preview-frame" sandbox="allow-scripts allow-modals" referrerpolicy="no-referrer"
                       allowtransparency="true" title="معاينة المشروع"></iframe>
               <div class="preview-empty" id="previewWelcome" role="status" aria-label="لا توجد معاينة بعد">
                 <div class="pv-glyph">⚡</div>
                 <h4>لا توجد معاينة بعد</h4>
                 <p>أنشئ ملف HTML وابدأ الكتابة، وستُحدَّث المعاينة هنا تلقائيًا.</p>
                 <div class="pv-actions">
-                  <button class="btn primary" onclick="files.newFile()">+ ملف جديد</button>
-                  <button class="btn" onclick="preview.refresh()">⟳ تحديث</button>
+                  <button class="btn primary" data-action="files.new">+ ملف جديد</button>
+                  <button class="btn" data-action="preview.refresh">⟳ تحديث</button>
                 </div>
               </div>
               <div class="console" id="console-output" dir="ltr" aria-live="polite" aria-label="سجل الكونسول"></div>
@@ -143,7 +144,7 @@
     <div class="modal" id="settings-modal" style="display: none;" role="dialog" aria-modal="true" aria-label="الإعدادات">
       <header class="modal-header">
         <h3>⚙️ إعدادات kingCode</h3>
-        <button class="btn btn-icon" onclick="ui.closeModal('settings-modal')" aria-label="إغلاق">✕</button>
+        <button class="btn btn-icon" data-action="modal.close" data-modal="settings-modal" aria-label="إغلاق">✕</button>
       </header>
       <div class="modal-body">
         <div class="settings-group">
@@ -187,7 +188,7 @@
           <input type="file" id="import-json-input" accept=".json" hidden />
         </div>
         <div class="modal-actions">
-          <button class="btn primary" onclick="ui.closeModal('settings-modal')">تم</button>
+          <button class="btn primary" data-action="modal.close" data-modal="settings-modal">تم</button>
         </div>
       </div>
     </div>

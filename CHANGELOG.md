@@ -3,6 +3,25 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.0.8] — 2026-11-03
+
+Phase 2 of the audit remediation (security hardening). Findings: S-02, S-03, S-06 in `docs/audit/SECURITY_AUDIT.md`.
+
+### Security
+
+- **S-03 — shell CSP no longer allows `'unsafe-inline'` scripts.** The 8 inline `onclick` handlers were replaced by `data-action` attributes handled by one delegated listener in `js/ui.js`; the `window.files/ui/preview/tabs/editor/state` aliases that existed only for those handlers were removed (`window.kc` stays for tests). CSP also gained `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` and `frame-src 'self'`.
+- **S-03 — preview now runs in its own page.** The preview iframe loads `sandbox.html` (opaque origin, still `sandbox="allow-scripts allow-modals"`) with its own CSP (`default-src 'none'`, inline script/style only, data:/blob: images) and receives the generated document by `postMessage` after a nonce handshake. Previously the `srcdoc` preview inherited the shell policy, which forced the shell to keep `'unsafe-inline'`. Preview network policy is unchanged: no fetch/XHR/WebSocket/remote resources.
+- **S-02 — console bridge hardened.** `level` is allow-listed (`log/info/warn/error/debug`), at most 20 parts per message and 2,000 chars per part; forged or oversized messages cannot inject class names or markup.
+- **S-06 — `referrer: no-referrer`** (meta + iframe attribute); host header guidance in `docs/security/HOSTING_HEADERS.md`.
+
+### Tests
+
+- `tools/e2e.js`: +4 tests (shell blocks inline script, preview scripts still run offline, bridge caps, sandbox page policy). `tools/ci-smoke.js`: +3 static guards.
+
+### Changed
+
+- Version 1.0.8 (`KC.version`, SW cache `kingcode-v1.0.8`, `package.json`); `sandbox.html` added to the precache list.
+
 ## [1.0.7] — 2026-11-03
 
 Phase 1 of the audit remediation (data integrity). Each item maps to `docs/audit/REPOSITORY_AUDIT.md`; each has an E2E regression test in `tools/e2e.js`.

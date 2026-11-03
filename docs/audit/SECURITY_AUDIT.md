@@ -7,11 +7,11 @@ Audited commit `45f7284`, 2026-11-03. Threat model: a user opens untrusted proje
 | ID | Title | Severity | Status |
 |---|---|---|---|
 | S-01 | Preview isolation (sandbox without `allow-same-origin`) | — | **Verified holding** |
-| S-02 | Console bridge messages | Low | Mitigated; hardening open |
-| S-03 | CSP: `'unsafe-inline'` scripts; inherited by preview | Medium | Open (design decision) |
-| S-04 | SW deletes other apps' caches | Medium | Open (= F-06) |
-| S-05 | Import validation gaps | Medium | Open (= F-04) |
-| S-06 | Missing headers possible only via host (no meta equivalents) | Low | Open / document |
+| S-02 | Console bridge messages | Low | **Fixed in 1.0.8** (level allow-list, size caps) |
+| S-03 | CSP: `'unsafe-inline'` scripts; inherited by preview | Medium | **Fixed in 1.0.8** (inline handlers removed; preview in own `sandbox.html` with its own CSP). Residual: `style-src 'unsafe-inline'` kept (inline `style=` attributes) |
+| S-04 | SW deletes other apps' caches | Medium | **Fixed in 1.0.7** (= F-06) |
+| S-05 | Import validation gaps | Medium | **Fixed in 1.0.7** (= F-04) |
+| S-06 | Missing headers possible only via host (no meta equivalents) | Low | Referrer meta added in 1.0.8; host headers documented in `docs/security/HOSTING_HEADERS.md` (cannot be enforced from a static app) |
 | S-07 | Data at rest: project in plaintext `localStorage` | Info | Accepted, document |
 | S-08 | Dev server | — | **Previously reported issues resolved** |
 | S-09 | Dependencies | Info | CM5 vendored; advisories unverified |

@@ -55,13 +55,7 @@ const APP = {
       U.$('#editorEmpty')?.classList.add('hidden');
     }
 
-    /* 8) أسماء عالمية (inline onclick + اختبارات) */
-    window.files = FILES;
-    window.ui = UI;
-    window.preview = PREVIEW;
-    window.tabs = TABS;
-    window.editor = EDITOR;
-    window.state = STATE;
+    /* 8) مقبض تنقيح واحد (kc) للاختبارات — لا أسماء عالمية إضافية بعد إزالة onclick المضمّن */
     window.kc = { KC, STATE, EDITOR, FILES, TABS, PREVIEW, FILE_LIST, UI, PALETTE, Commands, APP };
 
     /* 9) Service Worker */

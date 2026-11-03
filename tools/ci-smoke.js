@@ -73,6 +73,11 @@ function staticChecks() {
 
   record('SC-04: index.html declares meta CSP', html.indexOf('Content-Security-Policy') !== -1);
   record('SC-04: index.html preview sandbox tight (allow-scripts allow-modals)', html.indexOf('sandbox="allow-scripts allow-modals"') !== -1);
+  const scriptSrc = ((html.match(/script-src([^;"]*)/) || [])[1] || '');
+  record("S-03: shell script-src has no 'unsafe-inline'/'unsafe-eval'", scriptSrc.length > 0 && !/unsafe-(inline|eval)/.test(scriptSrc), 'script-src' + scriptSrc);
+  record('S-03: no inline event-handler attributes in index.html', !/\son(click|load|error|change|input|submit)\s*=/i.test(html));
+  const sb = fs.readFileSync(path.join(ROOT, 'sandbox.html'), 'utf8');
+  record("S-03: sandbox.html has its own CSP (default-src 'none')", /Content-Security-Policy/.test(sb) && /default-src 'none'/.test(sb));
 
   return appV && swV && appV === swV;
 }
