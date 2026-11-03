@@ -116,3 +116,8 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 3. **Introduce the `FS` adapter** over the existing `STATE`/`STORE` seams (File System Access API on Chromium desktop) — prerequisite for Git and native shells.
 4. Only then consider Git (isomorphic-git), a Tauri shell with a real PTY terminal, and — with a backend/proxy and a threat model first — AI and sync.
 5. Plan CodeMirror 6 and ES modules as separate, test-guarded projects when a shell or extension system needs them.
+
+## Addendum — cross-browser CI and store readiness (v1.4.2 → v1.5.0)
+
+- **v1.4.2:** the E2E suite runs on Chromium, Firefox and WebKit (Playwright builds) in CI; the first matrix run found 7 failures (4 test-setup issues, a real IndexedDB `versionchange` robustness gap, a WebKit behaviour difference — masked `Script error.` — now explained to the user); all fixed, then 48/48 on all three engines.
+- **v1.5.0:** store-readiness work for the PWA side (privacy page, screenshots, manifest, hosting headers, `npm run store:check`, `docs/store/`). Reviewing the generated screenshots exposed a real bug (explorer highlighted the wrong file after tab switches), fixed with a regression test confirmed red on the old code. **Nothing was submitted, built into an APK/AAB/MSIX, signed, deployed or tested on a device;** store policies and tool behaviour in `docs/store/` are my assessment and marked "verify". Remaining owner-only work: public origin, developer accounts, signing keys, device tests, Play feature graphic.

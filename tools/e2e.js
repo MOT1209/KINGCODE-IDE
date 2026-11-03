@@ -310,6 +310,20 @@ async function importJson(page, obj) {
     const fillPrompt = async (page, value) => { await page.waitForSelector('#prompt-modal', { state: 'visible' }); await page.fill('#prompt-input', value); await page.click('#prompt-ok'); await sleep(250); };
     const confirmOk = async page => { await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(300); };
 
+    await test('UX: the explorer highlights exactly the active file after switching tabs, palette and Alt+Arrow', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('one.js', '1'); FILES.create('two.js', '2'); });
+      await sleep(200);
+      const activeRows = () => page.$$eval('#file-list .file-item[data-kind="file"].active', n => n.map(r => r.querySelector('.file-name').textContent));
+      const expectActive = async (name, why) => { const a = await activeRows(); assert(a.length === 1 && a[0] === name, why + ': expected only ' + name + ' highlighted, got ' + JSON.stringify(a)); assert((await page.evaluate(() => kc.STATE.file(kc.STATE.data.activeId).name)) === name, why + ': state mismatch'); };
+      await expectActive('two.js', 'after create');
+      await page.click('#tab-container .tab:has-text("one.js")'); await sleep(200);
+      await expectActive('one.js', 'after clicking a tab');
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); });
+      await page.keyboard.press('Alt+ArrowRight'); await sleep(200);
+      assert((await activeRows()).length === 1, 'Alt+Arrow left several/no highlighted rows');
+      assert((await page.$eval('#file-list .file-item.active', r => r.getAttribute('aria-selected'))) === 'true', 'aria-selected not set on the active row');
+    }, browser, base);
+
     await test('A-03: nested path creates a folder row; folders collapse/expand and the state survives reload', async ({ page }) => {
       await page.evaluate(() => { FILES.create('src/app.js', 'x'); FILES.create('src/lib/util.js', 'y'); });
       await sleep(200);
@@ -403,6 +417,20 @@ async function importJson(page, obj) {
     }, browser, base);
 
     /* ---- Phase 5: إمكانية الوصول ---- */
+    await test('STORE: privacy page is served, linked from Settings (new tab, noopener), bilingual and script-free', async ({ page, base }) => {
+      await page.evaluate(() => UI.openSettings());
+      const link = await page.$eval('#settings-modal a[href="privacy.html"]', a => ({ target: a.target, rel: a.rel }));
+      assert(link.target === '_blank' && /noopener/.test(link.rel), 'privacy link must open in a new tab with noopener: ' + JSON.stringify(link));
+      const p2 = await page.context().newPage();
+      const res = await p2.goto(base + '/privacy.html');
+      assert(res.status() === 200, 'privacy.html status ' + res.status());
+      const title = await p2.title();
+      assert(/سياسة الخصوصية/.test(title), 'unexpected title: ' + title);
+      assert((await p2.$$('script')).length === 0, 'privacy page must contain no scripts');
+      assert((await p2.$$('section[lang="en"]')).length === 1, 'English section missing');
+      await p2.close();
+    }, browser, base);
+
     await test('A11Y: every button has an accessible name; tree/option roles are correct', async ({ page }) => {
       await sleep(300);
       const unnamed = await page.evaluate(() => Array.from(document.querySelectorAll('button')).filter(b => !((b.getAttribute('aria-label') || b.textContent || '').trim())).map(b => b.outerHTML.slice(0, 80)));

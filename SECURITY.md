@@ -36,4 +36,5 @@ Please describe the impact and reproduction steps **privately** to the maintaine
 - **Multi-tab.** Two tabs editing the same project are last-writer-wins.
 - **Browser coverage.** The security and storage E2E tests run in CI on Playwright's Chromium, Firefox and WebKit builds (Linux). That is not the same as real Safari on iOS/macOS, Android WebView or installed-app mode, which remain untested.
 - **CodeMirror 5** (vendored) is in maintenance mode; its exact version and advisory status were not independently verified.
+- **Hosting headers** (`vercel.json`, `_headers`) are verified structurally only; they have never been served by a real host. After the first deployment, check them with `curl -sI` and confirm the preview still works (`docs/security/HOSTING_HEADERS.md`).
 - **Future features.** There is no terminal, Git, AI or extension system. Before adding any of them, follow the threat-model rule in `docs/architecture/MULTI_PLATFORM_STRATEGY.md` §3 (secrets never in client storage, explicit user consent for writes, sandboxed extensions with declared permissions).

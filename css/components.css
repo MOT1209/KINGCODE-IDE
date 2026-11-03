@@ -665,3 +665,7 @@ kbd {
 .sidebar {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ملاحظة الإعدادات (رابط الخصوصية) */
+.settings-note { margin: 10px 0 2px; font-size: 12px; color: var(--text-dim); }
+.settings-note a { color: var(--accent); }

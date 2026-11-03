@@ -1,6 +1,6 @@
 {
   "name": "kingcode-ide",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "kingCode — a browser-based Arabic RTL code editor as a PWA. Vanilla ES6+, CodeMirror vendored locally, zero runtime dependencies (Playwright is a dev-only test dependency).",
   "private": true,
   "license": "MIT",
@@ -20,11 +20,13 @@
   },
   "scripts": {
     "dev": "node tools/server.js",
-    "test": "node tools/ci-smoke.js && node tools/unit/core.test.js && node tools/unit/preview.test.js",
+    "test": "node tools/ci-smoke.js && node tools/unit/core.test.js && node tools/unit/preview.test.js && node tools/store-check.js",
     "test:unit": "node tools/unit/core.test.js && node tools/unit/preview.test.js",
     "test:e2e": "node tools/e2e.js",
     "lint": "eslint .",
-    "perf": "node tools/perf.js"
+    "perf": "node tools/perf.js",
+    "store:check": "node tools/store-check.js",
+    "screenshots": "node tools/make-screenshots.js"
   },
   "keywords": [
     "editor",

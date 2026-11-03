@@ -41,7 +41,7 @@ module.exports = [
   },
   {
     /* callbacks الممرَّرة إلى page.evaluate تعمل داخل المتصفح وترى globals التطبيق */
-    files: ['tools/e2e.js', 'tools/perf.js'],
+    files: ['tools/e2e.js', 'tools/perf.js', 'tools/make-screenshots.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: { ...globals.node, ...globals.browser, ...appGlobals, kc: 'readonly' } },
     rules: sharedRules
   }
