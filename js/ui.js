@@ -137,7 +137,10 @@ const UI = {
             return;
           }
         }
-        if (this.isModalOpen('command-palette')) { e.preventDefault(); PALETTE.close(); }
+        if (this.isModalOpen('command-palette')) { e.preventDefault(); PALETTE.close(); return; }
+        /* الدرج المؤقت (جوال/آيباد) يُغلق بـ Esc */
+        const app = U.$('.app-container');
+        if (!document.body.classList.contains('view-desktop') && app && app.classList.contains('sidebar-open')) { e.preventDefault(); this.setSidebar(false); }
         return;
       }
 
@@ -376,23 +379,37 @@ const UI = {
   },
 
   toggleSidebar() {
-    this.setSidebar(!STATE.uiPrefs().sidebarOpen);
+    const el = U.$('.app-container');
+    this.setSidebar(!(el && el.classList.contains('sidebar-open')));
   },
 
+  /** على سطح المكتب يُحفظ اختيار المستخدم؛ على الجوال/الآيباد الشريط درج مؤقت (يبدأ مغلقًا ولا يُحفظ) */
   setSidebar(open) {
+    open = !!open;
     const el = U.$('.app-container');
-    /* حماية من الحلقة: اكتب فقط عند التغيير الفعلي */
-    if (el && el.classList.contains('sidebar-open') !== !!open) {
-      el.classList.toggle('sidebar-open', !!open);
-    }
-    if (STATE.uiPrefs().sidebarOpen !== open) STATE.setPref('sidebarOpen', open);
+    if (el && el.classList.contains('sidebar-open') !== open) el.classList.toggle('sidebar-open', open);
+    const desktop = document.body.classList.contains('view-desktop');
+    if (desktop && STATE.uiPrefs().sidebarOpen !== open) STATE.setPref('sidebarOpen', open);
+    const btn = U.$('#btnSidebar');
+    if (btn) btn.setAttribute('aria-expanded', String(open));
+    const nav = U.$('.mobile-quickbar [data-nav="files"]');
+    if (nav) nav.setAttribute('aria-expanded', String(open));
+  },
+
+  /** الجوال: جزء واحد بملء الشاشة في كل مرة — 'editor' أو 'preview' */
+  setMobileView(view) {
+    document.body.dataset.mview = view === 'preview' ? 'preview' : 'editor';
+    U.$$('.mobile-quickbar [data-nav="editor"], .mobile-quickbar [data-nav="preview"]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.nav === document.body.dataset.mview));
+    });
+    if (document.body.dataset.mview === 'preview') PREVIEW.refresh();
+    else if (EDITOR.cm) EDITOR.cm.refresh();
   },
 
   /* ---------- محاور الاستجابة (الموبايل/الآيباد) ---------- */
 
   setupResponsive() {
-    const applySidebar = open => this.setSidebar(open);
-    STATE.on('pref:sidebarOpen', applySidebar);
+    STATE.on('pref:sidebarOpen', open => this.setSidebar(open));
 
     const m1 = window.matchMedia(KC.ui.mobileQuery);
     const m2 = window.matchMedia(KC.ui.tabletQuery);
@@ -401,37 +418,40 @@ const UI = {
       const isTablet = m2.matches;
       document.body.classList.toggle('view-mobile', isMobile);
       document.body.classList.toggle('view-tablet', isTablet && !isMobile);
-      document.body.classList.toggle('view-desktop', !m2.matches);
-      /* الموبايل: أغلق الشريط الجانبي تلقائيًا */
-      if (isMobile && STATE.uiPrefs().sidebarOpen) this.setSidebar(false);
+      document.body.classList.toggle('view-desktop', !isTablet);
+      /* الجوال والآيباد: الشريط الجانبي درج مؤقت يبدأ مغلقًا؛ سطح المكتب: يعود لاختيار المستخدم المحفوظ */
+      this.setSidebar(isTablet ? false : STATE.uiPrefs().sidebarOpen);
+      if (!isMobile) delete document.body.dataset.mview;
+      else if (!document.body.dataset.mview) this.setMobileView('editor');
+      if (EDITOR.cm) EDITOR.cm.refresh();
     };
+
+    /* شريط تنقل سفلي (الجوال): الملفات | المحرر | المعاينة | الإعدادات — في تدفق الصفحة لا عائمًا فوق المحتوى */
+    const nav = document.createElement('nav');
+    nav.className = 'mobile-quickbar';
+    nav.setAttribute('aria-label', 'التنقل بين أجزاء التطبيق');
+    nav.innerHTML =
+      '<button type="button" data-nav="files" aria-label="الملفات" aria-expanded="false"><span class="nav-ico" aria-hidden="true">☰</span><span class="nav-lbl">الملفات</span></button>' +
+      '<button type="button" data-nav="editor" aria-label="المحرر" aria-pressed="true"><span class="nav-ico" aria-hidden="true">✏️</span><span class="nav-lbl">المحرر</span></button>' +
+      '<button type="button" data-nav="preview" aria-label="المعاينة" aria-pressed="false"><span class="nav-ico" aria-hidden="true">👁</span><span class="nav-lbl">المعاينة</span></button>' +
+      '<button type="button" data-nav="settings" aria-label="الإعدادات"><span class="nav-ico" aria-hidden="true">⚙️</span><span class="nav-lbl">الإعدادات</span></button>';
+    nav.addEventListener('click', e => {
+      const b = e.target.closest('[data-nav]');
+      if (!b) return;
+      const a = b.dataset.nav;
+      if (a === 'files') UI.toggleSidebar();
+      else if (a === 'settings') UI.openSettings();
+      else { UI.setSidebar(false); UI.setMobileView(a); }
+    });
+    U.$('.app-container').appendChild(nav);
+
     m1.addEventListener?.('change', onChange);
     m2.addEventListener?.('change', onChange);
     onChange();
 
-    /* زر هامبرغر عائم (الأجهزة الصغيرة والمتوسطة) */
-    const burger = document.createElement('button');
-    burger.className = 'btn btn-icon edge-toggle';
-    burger.innerHTML = '☰';
-    burger.setAttribute('title', 'الشريط الجانبي');
-    burger.setAttribute('aria-label', 'إظهار أو إخفاء الشريط الجانبي');
-    burger.addEventListener('click', () => UI.toggleSidebar());
-    U.$('.app-container').prepend(burger);
-
-    /* أزرار سرعة على موبايل */
-    const bar = document.createElement('div');
-    bar.className = 'mobile-quickbar';
-    bar.innerHTML =
-      '<button class="btn btn-icon" title="الشريط الجانبي" aria-label="الشريط الجانبي">☰</button>' +
-      '<button class="btn btn-icon" title="الملف السابق" aria-label="الملف السابق">⬅</button>' +
-      '<button class="btn btn-icon" title="الملف التالي" aria-label="الملف التالي">➡</button>' +
-      '<button class="btn btn-icon" title="الإعدادات" aria-label="الإعدادات">⚙️</button>';
-    const [b1, b2, b3, b4] = bar.children;
-    b1.addEventListener('click', () => UI.toggleSidebar());
-    b2.addEventListener('click', () => TABS.cycle(-1));
-    b3.addEventListener('click', () => TABS.cycle(1));
-    b4.addEventListener('click', () => UI.openSettings());
-    U.$('.app-container').appendChild(bar);
+    U.$('#btnSidebar')?.addEventListener('click', () => UI.toggleSidebar());
+    /* النقر على الطبقة المعتمة خلف الدرج يغلقه */
+    U.$('#sidebarOverlay')?.addEventListener('click', () => UI.setSidebar(false));
 
     /* مقبض تقسيم عرض المعاينة (سطح المكتب فقط) */
     const split = U.$('#mainSplit');

@@ -174,7 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const list = U.$('#file-list');
   if (!list) return;
 
-  const closeSidebarOnMobile = () => { if (window.matchMedia(KC.ui.mobileQuery).matches) UI.setSidebar(false); };
+  /* الجوال/الآيباد: الدرج مؤقت — يُغلق بعد اختيار ملف؛ على الجوال يظهر المحرر */
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia(KC.ui.tabletQuery).matches) UI.setSidebar(false);
+    if (window.matchMedia(KC.ui.mobileQuery).matches) UI.setMobileView('editor');
+  };
 
   list.addEventListener('click', e => {
     const actBtn = e.target.closest('.file-act');

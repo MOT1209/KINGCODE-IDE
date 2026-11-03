@@ -3,6 +3,28 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.4.0] — 2026-11-03
+
+Phase 5 (UI/UX): responsive layouts designed per device class instead of shrinking the desktop UI.
+
+### Changed
+
+- **Phone (< 768 px):** one full-height pane at a time — editor, or preview + console — switched by a labelled **bottom navigation bar** (Files | Editor | Preview | Settings) in normal flow (it no longer floats over the code/console), touch targets ≥ 44 px, `aria-pressed`/`aria-expanded` state. Before: editor and preview were stacked 50/50 with the console covering most of the preview and floating buttons over the code. Choosing a file closes the drawer and shows the editor.
+- **Tablet (768–1023 px):** the file drawer starts **closed** (it used to open over the editor on first run), is opened from a new toolbar ☰ button (`#btnSidebar`, `aria-expanded`), and is not persisted. On desktop the sidebar choice is saved as before and is no longer overwritten by passing through a phone-sized window.
+- The floating burger (`edge-toggle`) and the pill-shaped quick bar were removed.
+
+### Fixed
+
+- Tapping the dimmed overlay behind the drawer did nothing; it now closes the drawer, and `Esc` closes it too.
+
+### Tests
+
+- **E2E 46** (+4, each at its own viewport and input mode): phone single-pane flow with 44 px targets and no overflow; phone drawer lifecycle (closed → open → closes after picking a file → not persisted); tablet drawer, overlay and Esc; desktop persistence across a phone-size round trip.
+
+### Meta
+
+- Version 1.4.0 (`KC.version`, SW cache `kingcode-v1.4.0`, `package.json`).
+
 ## [1.3.0] — 2026-11-03
 
 Phase 3 complete (A-06, T-05, T-07) + Phase 4 editor verification.

@@ -35,7 +35,6 @@ const APP = {
     });
 
     /* 5) الشريط الجانبي والقوائم */
-    UI.setSidebar(STATE.uiPrefs().sidebarOpen);
     FILE_LIST.render();
     TABS.render();
 

@@ -4,7 +4,7 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.3.0';
+const VERSION = 'kingcode-v1.4.0';
 const CACHE_PREFIX = 'kingcode-cache-';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
 

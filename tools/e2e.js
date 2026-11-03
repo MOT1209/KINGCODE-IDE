@@ -51,7 +51,7 @@ function copyApp(dest) {
 }
 
 async function test(name, fn, browser, base, opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, hasTouch: !!opts.touch, isMobile: !!opts.mobile, acceptDownloads: true });
   if (opts.init) await ctx.addInitScript(opts.init);
   const page = await ctx.newPage();
   const pageErrors = [];
@@ -486,6 +486,69 @@ async function importJson(page, obj) {
       assert(Date.now() - t1 < 1500, 'switching tabs with a 50k-line doc was slow');
       await sleep(800); await reload(page);
       assert((await page.evaluate(() => kc.STATE.fileByName('huge.txt').content.length)) === lines.length + 1, 'huge file lost or truncated');
+    }, browser, base);
+
+    /* ---- Phase 5: تخطيط الجوال/الآيباد/سطح المكتب ---- */
+    const PHONE = { viewport: { width: 390, height: 800 }, touch: true, mobile: true };
+    const visible = (page, sel) => page.evaluate(sel => { const e = document.querySelector(sel); if (!e) return false; const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0; }, sel);
+
+    await test('UX phone: one full-height pane at a time, labeled bottom nav, touch targets >= 44px, no overflow', async ({ page }) => {
+      assert(await visible(page, '.mobile-quickbar'), 'bottom nav missing');
+      const labels = await page.$$eval('.mobile-quickbar button', b => b.map(x => x.getAttribute('aria-label')));
+      assert(labels.length === 4, 'nav buttons: ' + labels);
+      const small = await page.$$eval('.mobile-quickbar button', b => b.filter(x => { const r = x.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).length);
+      assert(small === 0, 'touch targets smaller than 44px: ' + small);
+      assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), 'horizontal overflow');
+      assert((await page.evaluate(() => document.body.dataset.mview)) === 'editor', 'default view is not the editor');
+      assert(await visible(page, '#editor-container') && !(await visible(page, '#preview-container')), 'editor/preview visibility wrong in editor view');
+      const eh = await page.evaluate(() => document.querySelector('.editor-pane').getBoundingClientRect().height);
+      assert(eh > 400, 'editor pane is not full height: ' + eh);
+      await page.click('[data-nav="preview"]'); await sleep(300);
+      assert(await visible(page, '#preview-container') && !(await visible(page, '.editor-pane')), 'preview view wrong');
+      assert((await page.getAttribute('[data-nav="preview"]', 'aria-pressed')) === 'true' && (await page.getAttribute('[data-nav="editor"]', 'aria-pressed')) === 'false', 'aria-pressed not updated');
+      await page.waitForFunction(() => /المعاينة جاهزة/.test(document.querySelector('#console-output').textContent), null, { timeout: 6000 });
+      await page.click('[data-nav="editor"]'); await sleep(200);
+      assert(await visible(page, '.editor-pane') && !(await visible(page, '#preview-container')), 'did not return to the editor');
+    }, browser, base, PHONE);
+
+    await test('UX phone: file drawer starts closed, opens from the nav, closes after picking a file and shows the editor', async ({ page }) => {
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'drawer open on first load');
+      await page.click('[data-nav="preview"]'); await sleep(200);
+      await page.click('[data-nav="files"]'); await sleep(350);
+      assert(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open')), 'drawer did not open');
+      assert((await page.getAttribute('[data-nav="files"]', 'aria-expanded')) === 'true', 'aria-expanded not set');
+      await page.click('#file-list .file-item[data-kind="file"] >> nth=1'); await sleep(350);
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'drawer stayed open after picking a file');
+      assert((await page.evaluate(() => document.body.dataset.mview)) === 'editor', 'did not switch to the editor after picking a file');
+      await sleep(400); await reload(page);
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'drawer persisted open across reload on a phone');
+    }, browser, base, PHONE);
+
+    await test('UX tablet: drawer starts closed (overlay), toolbar button toggles it, side-by-side not required', async ({ page }) => {
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'drawer covers the editor on first load');
+      assert(await visible(page, '#btnSidebar'), 'sidebar button missing on tablet');
+      await page.click('#btnSidebar'); await sleep(350);
+      assert((await page.getAttribute('#btnSidebar', 'aria-expanded')) === 'true' && (await visible(page, '#sidebar')), 'drawer did not open');
+      assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), 'horizontal overflow');
+      assert(!(await visible(page, '.mobile-quickbar')), 'phone nav must not show on a tablet');
+      await page.click('#sidebarOverlay', { position: { x: 20, y: 300 } }); await sleep(350);
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'overlay click did not close the drawer');
+      await page.click('#btnSidebar'); await sleep(300);
+      await page.keyboard.press('Escape'); await sleep(300);
+      assert(!(await page.evaluate(() => document.querySelector('.app-container').classList.contains('sidebar-open'))), 'Esc did not close the drawer');
+    }, browser, base, { viewport: { width: 820, height: 1100 }, touch: true });
+
+    await test('UX desktop: sidebar open by default, user choice persists, and a trip through phone size does not overwrite it', async ({ page }) => {
+      assert(await visible(page, '#sidebar'), 'sidebar not visible on desktop');
+      await page.click('#btnSidebar'); await sleep(300);
+      assert(!(await visible(page, '#sidebar')), 'sidebar did not hide');
+      await page.setViewportSize({ width: 390, height: 800 }); await sleep(400);
+      await page.setViewportSize({ width: 1280, height: 800 }); await sleep(400);
+      assert(!(await visible(page, '#sidebar')), 'desktop choice (hidden) was lost after resizing through phone size');
+      await sleep(400); await reload(page);
+      assert(!(await visible(page, '#sidebar')), 'desktop sidebar choice not persisted');
+      await page.click('#btnSidebar'); await sleep(300);
+      assert(await visible(page, '#sidebar'), 'sidebar did not show again');
     }, browser, base);
 
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */

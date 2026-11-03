@@ -9,7 +9,7 @@
 const KC = {
 
   /** مصفوفة التوقيع — يُغيَّر عند تعديل بنية التخزين */
-  version: 'kingCode ' + '1.3.0',
+  version: 'kingCode ' + '1.4.0',
 
   /** فترات debounce (مللي ثانية) */
   timing: {
