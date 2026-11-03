@@ -187,8 +187,8 @@ const FILES = {
   download(id) {
     const f = STATE.file(id);
     if (!f) return;
-    const mime = { 'html': 'text/html', 'css': 'text/css', 'js': 'text/javascript', 'mjs': 'text/javascript' }
-      [KC.extOf(f.name)] || 'text/plain';
+    const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript', mjs: 'text/javascript' };
+    const mime = MIME[KC.extOf(f.name)] || 'text/plain';
     if (U.downloadText(U.baseName(f.name), f.content, mime)) UI.toast('تم تنزيـل «' + f.name + '» ⤓');
   },
 

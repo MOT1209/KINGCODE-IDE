@@ -31,7 +31,7 @@ const PreviewBuilder = {
   fallback(f) {
     const ext = KC.extOf(f.name);
     const esc = U.escapeHtml(f.content || '');
-    let body = '';
+    let body;
 
     if (ext === 'css') {
       body = `<style>${f.content.replace(/<\/style/gi, '<\\/style')}</style>
@@ -40,7 +40,7 @@ const PreviewBuilder = {
       <style>.kc-demo{font-family:system-ui;padding:40px;display:grid;place-items:center;text-align:center;gap:12px}
       .kc-btn{padding:10px 24px;border:0;border-radius:10px;cursor:pointer}</style>`;
     } else if (ext === 'js' || ext === 'mjs') {
-      body = `<script>${f.content.replace(/<\/script/gi, '<\\/script')}\n<\/script>
+      body = `<script>${f.content.replace(/<\/script/gi, '<\\/script')}\n</script>
 <p style="font:14px system-ui;padding:16px">انظر الكونسول للنتائج ⤵</p>`;
     } else if (ext === 'json') {
       body = `<pre>${esc}</pre>`;
@@ -96,7 +96,7 @@ const PreviewBuilder = {
     out = out.replace(/<script\b[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (whole, src) => {
       const f = mapFor(src);
       if (!f) return whole;
-      return '<script data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n<\/script>';
+      return '<script data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n</script>';
     });
 
     return out;
@@ -137,6 +137,6 @@ const PreviewBuilder = {
   });
   console.log('[kingCode] المعاينة جاهزة داخل sandbox آمن');
 })();
-<\/script>`;
+</script>`;
   }
 };

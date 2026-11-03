@@ -77,7 +77,7 @@ const STORE = {
 
   /** يعيد لقطة الحالة { files, tabs, activeId, settings, uiPrefs, folders } أو null (لا بيانات سابقة) */
   async load() {
-    let snap = null;
+    let snap;
     try {
       if (this.kind === 'idb') {
         const meta = await this._req('meta', s => s.get('state'));
@@ -172,7 +172,7 @@ const STORE = {
   clearJournal() { try { localStorage.removeItem(this.JOURNAL_KEY); } catch (_) {} },
 
   _applyJournal(snap) {
-    let j = null;
+    let j;
     try { const raw = localStorage.getItem(this.JOURNAL_KEY); j = raw ? JSON.parse(raw) : null; } catch (_) { j = null; }
     if (!j || !Array.isArray(j.files) || !j.files.length) return snap;
     const base = snap || { files: [] };

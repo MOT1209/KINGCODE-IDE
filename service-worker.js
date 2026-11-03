@@ -4,7 +4,7 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.2.0';
+const VERSION = 'kingcode-v1.3.0';
 const CACHE_PREFIX = 'kingcode-cache-';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
 
@@ -39,6 +39,8 @@ const ASSETS = [
   'js/tabs.js',
   'js/preview-builder.js',
   'js/preview.js',
+  'js/commands.js',
+  'js/palette.js',
   'js/ui.js',
   'js/app.js',
 

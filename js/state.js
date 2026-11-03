@@ -299,7 +299,7 @@ const STATE = {
     this._changed = new Set();
     const startedAt = Date.now();
     const snapshot = this._snapshot();
-    let ok = false;
+    let ok;
     try { ok = await STORE.save(snapshot, ids); } catch (e) { ok = false; }
     if (!ok) {
       /* لا نفقد معلومة «ما الذي لم يُكتب»: أعد وسمه ليُعاد في المحاولة التالية */

@@ -32,6 +32,24 @@ async function startServer(port) {
   child.kill(); throw new Error('server did not start');
 }
 
+/** يبدأ خادمًا من نسخة مؤقتة من التطبيق (لاختبار التحديث بين نسختين) */
+async function startServerAt(dir, port) {
+  const child = spawn(process.execPath, [path.join(dir, 'tools', 'server.js')], { env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' }, stdio: 'ignore' });
+  for (let i = 0; i < 50; i++) {
+    const ok = await new Promise(r => require('http').get({ host: '127.0.0.1', port, path: '/', agent: false }, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false)));
+    if (ok) return child;
+    await sleep(100);
+  }
+  child.kill(); throw new Error('copy server did not start');
+}
+
+function copyApp(dest) {
+  fs.mkdirSync(path.join(dest, 'tools'), { recursive: true });
+  for (const f of ['index.html', 'sandbox.html', 'manifest.json', 'service-worker.js']) fs.copyFileSync(path.join(ROOT, f), path.join(dest, f));
+  for (const d of ['css', 'js', 'vendor', 'icons']) fs.cpSync(path.join(ROOT, d), path.join(dest, d), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'tools', 'server.js'), path.join(dest, 'tools', 'server.js'));
+}
+
 async function test(name, fn, browser, base, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   if (opts.init) await ctx.addInitScript(opts.init);
@@ -192,7 +210,7 @@ async function importJson(page, obj) {
 
     await test('A-01: edits write only the changed file record (differential save)', async ({ page }) => {
       await sleep(500);
-      const before = await page.evaluate(() => { window.__puts = 0; const o = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function (v, k) { if (v && v.id) window.__puts++; return o.apply(this, arguments); }; return 1; });
+      await page.evaluate(() => { window.__puts = 0; const o = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function (v, k) { if (v && v.id) window.__puts++; return o.apply(this, arguments); }; return 1; });
       await typeAll(page, '<p>only this file</p>'); await sleep(700);
       const puts = await page.evaluate(() => window.__puts);
       assert(puts === 1, 'expected exactly 1 file record written, got ' + puts);
@@ -353,6 +371,121 @@ async function importJson(page, obj) {
       await page.evaluate(() => Commands.run('ui.palette')); await sleep(200);
       const n = await page.$$eval('#cmd-results li', x => x.length);
       assert(n > 30, 'palette truncated: ' + n);
+    }, browser, base);
+
+    /* ---- T-05: تحديث PWA الحقيقي بين نسختين ---- */
+    const appDir = path.join(tmp, 'app-copy');
+    copyApp(appDir);
+    const port2 = await freePort();
+    const server2 = await startServerAt(appDir, port2);
+    const base2 = 'http://127.0.0.1:' + port2;
+    try {
+      await test('T-05/F-07: a new service worker waits for the user; applyUpdate saves, activates it, reloads, and cleans only kingcode caches', async ({ page }) => {
+        await page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 10000 });
+        const oldCache = (await page.evaluate(() => caches.keys())).find(k => k.startsWith('kingcode-cache-'));
+        assert(oldCache, 'no kingcode cache before update');
+        await page.evaluate(() => caches.open('foreign-app-cache').then(c => c.put('/f', new Response('f'))));
+        /* نسخة «جديدة»: غيّر VERSION في الملف المقدَّم */
+        const swPath = path.join(appDir, 'service-worker.js');
+        const sw = fs.readFileSync(swPath, 'utf8');
+        fs.writeFileSync(swPath, sw.replace(/const VERSION = '[^']+'/, "const VERSION = 'kingcode-v9.9.9'"));
+        await page.evaluate(() => { window.__marker = 1; return navigator.serviceWorker.getRegistration().then(r => r.update()); });
+        await page.waitForFunction(() => APP.updateReady === true, null, { timeout: 10000 });
+        await sleep(1200);
+        assert((await page.evaluate(() => window.__marker)) === 1, 'page reloaded by itself on update');
+        assert((await page.$$eval('.toast', n => n.map(x => x.textContent))).some(t => /تحديث/.test(t)), 'no update toast');
+        const mid = await page.evaluate(() => caches.keys());
+        assert(mid.includes(oldCache), 'old cache removed before the user applied the update');
+        /* تعديل غير محفوظ بعد → يجب ألّا يضيع */
+        await typeAll(page, 'EDIT-BEFORE-UPDATE');
+        await page.evaluate(() => APP.applyUpdate());
+        await page.waitForFunction(() => !window.__marker, null, { timeout: 15000 });
+        await page.waitForFunction(() => window.KINGCODE_READY);
+        assert((await page.evaluate(() => kc.STATE.files()[0].content)) === 'EDIT-BEFORE-UPDATE', 'edit lost across the update reload');
+        await sleep(800);
+        const after = await page.evaluate(() => caches.keys());
+        assert(after.includes('kingcode-cache-kingcode-v9.9.9'), 'new cache missing: ' + after);
+        assert(!after.includes(oldCache), 'old kingcode cache not cleaned: ' + after);
+        assert(after.includes('foreign-app-cache'), 'foreign cache was deleted: ' + after);
+      }, browser, base2);
+    } finally { server2.kill(); }
+
+    /* ---- Phase 4: المحرر ---- */
+    await test('EDITOR: Ctrl+F opens search, finds matches; Ctrl+H replaces', async ({ page }) => {
+      await typeAll(page, 'foo bar foo baz foo');
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); kc.EDITOR.cm.setCursor({ line: 0, ch: 0 }); });
+      await page.keyboard.press('Control+f'); await sleep(300);
+      assert((await page.$$('.CodeMirror-dialog')).length > 0, 'search dialog did not open');
+      await page.keyboard.type('foo'); await page.keyboard.press('Enter'); await sleep(200);
+      assert((await page.evaluate(() => kc.EDITOR.cm.getSelection())) === 'foo', 'search did not select a match');
+      await page.keyboard.press('Escape'); await sleep(150);
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); kc.EDITOR.cm.setCursor({ line: 0, ch: 0 }); });
+      await page.keyboard.press('Control+h'); await sleep(300);
+      await page.keyboard.type('foo'); await page.keyboard.press('Enter'); await sleep(150);
+      await page.keyboard.type('X'); await page.keyboard.press('Enter'); await sleep(150);
+      await page.keyboard.press('Enter'); await sleep(150); /* يستبدل كل ما تبقّى بحسب الحوار: نتأكد على الأقل أن أول تطابق استُبدل */
+      assert(/X/.test(await page.evaluate(() => kc.EDITOR.cm.getValue())), 'replace did not change the text');
+    }, browser, base);
+
+    await test('EDITOR: Ctrl+/ toggles comments in JS and HTML modes; syntax highlighting classes present', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('t.js', 'let a = 1;\nlet b = 2;'); });
+      await sleep(250);
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); kc.EDITOR.cm.execCommand('selectAll'); });
+      await page.keyboard.press('Control+/'); await sleep(150);
+      assert(/^\/\/ let a/.test(await page.evaluate(() => kc.EDITOR.cm.getLine(0))), 'JS comment not applied');
+      await page.keyboard.press('Control+/'); await sleep(150);
+      assert((await page.evaluate(() => kc.EDITOR.cm.getLine(0))) === 'let a = 1;', 'JS uncomment failed');
+      assert((await page.$$('.CodeMirror .cm-keyword')).length > 0, 'no syntax highlighting (cm-keyword)');
+      await page.evaluate(() => { FILES.create('t.css', 'a { color: red; }'); }); await sleep(250);
+      assert((await page.$$('.CodeMirror .cm-property')).length > 0, 'CSS highlighting missing');
+    }, browser, base);
+
+    await test('EDITOR: settings apply live and persist (theme, font size, tab size, wrap, line numbers)', async ({ page }) => {
+      await page.evaluate(() => { STATE.setSetting('theme', 'dracula'); STATE.setSetting('fontSize', 20); STATE.setSetting('tabSize', 4); STATE.setSetting('wrapLines', true); STATE.setSetting('showLineNumbers', false); });
+      await sleep(300);
+      assert(await page.evaluate(() => document.querySelector('.CodeMirror').classList.contains('cm-s-dracula')), 'theme not applied');
+      assert((await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size').trim())) === '20px', 'font size not applied');
+      assert((await page.evaluate(() => kc.EDITOR.cm.getOption('tabSize'))) === 4 && (await page.evaluate(() => kc.EDITOR.cm.getOption('lineWrapping'))) === true, 'tab/wrap not applied');
+      assert((await page.evaluate(() => kc.EDITOR.cm.getOption('lineNumbers'))) === false && (await page.evaluate(() => getComputedStyle(document.querySelector('.CodeMirror-gutters')).display)) === 'none', 'line numbers still visible');
+      await sleep(400); await reload(page);
+      assert((await page.evaluate(() => kc.STATE.settings().theme)) === 'dracula' && (await page.evaluate(() => kc.STATE.settings().fontSize)) === 20, 'settings lost on reload');
+      assert(await page.evaluate(() => document.querySelector('.CodeMirror').classList.contains('cm-s-dracula')), 'theme not restored on reload');
+    }, browser, base);
+
+    await test('EDITOR: Ctrl+S saves with feedback; Ctrl+P opens palette; Alt+Arrow switches tabs', async ({ page }) => {
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); });
+      await page.keyboard.press('Control+s'); await sleep(250);
+      assert((await page.$$eval('.toast', n => n.map(x => x.textContent))).some(t => /حُفظ/.test(t)), 'no save toast');
+      await page.keyboard.press('Control+p'); await sleep(250);
+      assert(await page.evaluate(() => UI.isModalOpen('command-palette')), 'palette did not open');
+      await page.keyboard.press('Escape'); await sleep(150);
+      await page.evaluate(() => TABS.open(kc.STATE.files()[1].id, { activate: false })); /* Alt+Arrow needs ≥ 2 pestañas */
+      await page.evaluate(() => kc.STATE.setActive(kc.STATE.data.tabs[0]));
+      const first = await page.evaluate(() => kc.STATE.data.activeId);
+      await page.evaluate(() => kc.EDITOR.cm.focus());
+      await page.keyboard.press('Alt+ArrowRight'); await sleep(200);
+      const second = await page.evaluate(() => kc.STATE.data.activeId);
+      assert(second !== first, 'Alt+→ inside the editor did not switch to the next tab (handlers cancelled each other)');
+      await page.keyboard.press('Alt+ArrowLeft'); await sleep(200);
+      assert((await page.evaluate(() => kc.STATE.data.activeId)) === first, 'Alt+← inside the editor did not go back');
+      await page.evaluate(() => document.activeElement.blur());
+      await page.keyboard.press('Alt+ArrowRight'); await sleep(200);
+      assert((await page.evaluate(() => kc.STATE.data.activeId)) === second, 'Alt+→ outside the editor did not switch tab (once)');
+    }, browser, base);
+
+    await test('EDITOR: a 50,000-line file stays responsive (type, switch tab, persist) and survives reload', async ({ page }) => {
+      const lines = 'line of text number 123456\n'.repeat(50000);
+      await page.evaluate(l => { FILES.create('huge.txt', l); }, lines);
+      await sleep(600);
+      const t0 = Date.now();
+      await page.evaluate(() => { kc.EDITOR.cm.replaceRange('X', { line: 25000, ch: 0 }); });
+      const typeMs = Date.now() - t0;
+      assert(typeMs < 1500, 'edit in a 50k-line doc took ' + typeMs + ' ms');
+      const t1 = Date.now();
+      await page.evaluate(() => { kc.STATE.setActive(kc.STATE.files()[0].id); kc.STATE.setActive(kc.STATE.fileByName('huge.txt').id); });
+      assert(Date.now() - t1 < 1500, 'switching tabs with a 50k-line doc was slow');
+      await sleep(800); await reload(page);
+      assert((await page.evaluate(() => kc.STATE.fileByName('huge.txt').content.length)) === lines.length + 1, 'huge file lost or truncated');
     }, browser, base);
 
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */

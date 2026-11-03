@@ -3,6 +3,27 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.3.0] — 2026-11-03
+
+Phase 3 complete (A-06, T-05, T-07) + Phase 4 editor verification.
+
+### Fixed
+
+- **Alt+→ / Alt+← did nothing inside the editor.** CodeMirror's key map (→ next, ← previous) and the global handler (which treated ← as *next*) both ran and cancelled each other. The global handler now ignores events CodeMirror already handled and uses the same meaning everywhere (→ next, ← previous, matching the LTR tab strip and the README). Verified red on the old handler, green now (E2E `Alt+Arrow`).
+
+### Changed
+
+- **`js/ui.js` (700 lines) split** into `js/commands.js` (command registry + definitions), `js/palette.js` (command palette) and `js/ui.js` (modals, toasts, console, settings, shortcuts, responsive, install). No behavior change; `sandbox`, tests and precache list updated (A-06).
+- **ESLint added (dev-only)** with a config that declares the app's cross-file globals, so typos between scripts fail the build (T-07). First run found and I fixed: a property access split across lines in `files.js`, dead assignments, redundant escapes. CI gains a `lint` job.
+
+### Tests
+
+- **E2E 42** (+6): real two-version **service-worker update** (new worker waits; no automatic reload; edit survives `applyUpdate`; only `kingcode-cache-*` caches are cleaned and a foreign cache is kept), editor search (Ctrl+F) and replace (Ctrl+H), Ctrl+/ comments and syntax-highlight classes, live + persisted settings (theme, font size, tab size, wrap, line numbers), Ctrl+S / Ctrl+P / Alt+Arrow, and a **50,000-line file** (edit and tab switch < 1.5 s, survives reload).
+
+### Meta
+
+- Version 1.3.0 (`KC.version`, SW cache `kingcode-v1.3.0`, `package.json`); `js/commands.js` and `js/palette.js` added to the precache list.
+
 ## [1.2.0] — 2026-11-03
 
 Phase 3, step 4 (virtual filesystem, A-03) + start of Phases 4–5 (explorer, accessibility).

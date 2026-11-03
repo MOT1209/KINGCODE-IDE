@@ -9,7 +9,7 @@
 const KC = {
 
   /** مصفوفة التوقيع — يُغيَّر عند تعديل بنية التخزين */
-  version: 'kingCode ' + '1.2.0',
+  version: 'kingCode ' + '1.3.0',
 
   /** فترات debounce (مللي ثانية) */
   timing: {
@@ -59,7 +59,7 @@ const KC = {
     <button id="magicBtn">✨ جرّب هذا الزر</button>
     <p id="magicOut"></p>
   </main>
-  <script src="script.js"><\/script>
+  <script src="script.js"></script>
 </body>
 </html>`
     },
