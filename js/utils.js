@@ -35,46 +35,7 @@ const U = {
     return Math.min(max, Math.max(min, v));
   },
 
-  /* ---------- التخزين الآمن (localStorage متزامن + عزل أخطاء) ----------
- * ملاحظة: IndexedDB غير متزامن بطبيعته وبه مستهلكون متزامنون هنا
- * (state.hydrate، TABS.open، EDITOR.change، ...). أي ترقية مستقبلية
- * إلى IDB تتطلب جعل كل المستهلكين async أولاً؛ لا تُدمج IDB هنا دون ذلك.
- */
-
-  storage: {
-    get(key, fallback = null) {
-      try {
-        const raw = localStorage.getItem(key);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch (e) {
-        console.warn('[kingCode] storage read failed:', e);
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-        return true;
-      } catch (e) {
-        /* quota exceeded أو وضع خاص: الفشل يُبلَّغ عبر STATE ('persisted' {ok:false}) والواجهة تعرضه بشكل دائم */
-        console.warn('[kingCode] storage write failed:', (e && e.name) || e);
-        return false;
-      }
-    },
-    remove(key) {
-      try { localStorage.removeItem(key); } catch (e) { /* تجاهل */ }
-    },
-    usage() {
-      try {
-        let total = 0;
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          total += (k.length + (localStorage.getItem(k) || '').length) * 2;
-        }
-        return total;
-      } catch (e) { return 0; }
-    }
-  },
+  /* التخزين الدائم: انظر js/storage.js (STORE) — IndexedDB مع localStorage احتياطًا */
 
   /* ---------- التفريغ/الإثراء ---------- */
 
@@ -115,6 +76,42 @@ const U = {
     return n;
   },
 
+  /** مسار افتراضي سليم: يفصل على / و\\، ينظّف كل مقطع، يحذف المقاطع الفارغة و«.»/«..»؛ يعيد '' إن تجاوز العمق/الطول */
+  safePath(raw) {
+    const segs = String(raw || '').split(/[\\/]+/).map(s => U.safeFileName(s)).filter(Boolean);
+    if (!segs.length || segs.length > KC.limits.maxDepth) return '';
+    const p = segs.join('/');
+    return p.length > KC.limits.maxPathChars ? '' : p;
+  },
+
+  baseName(p) { return String(p || '').split('/').pop(); },
+  dirName(p) { const i = String(p || '').lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i); },
+
+  /** هل يتعارض المسار مع مجموعة الأسماء؟ (تطابق تام، أو ملف هو أب للمسار، أو المسار نفسه أبٌ لملف) */
+  pathConflict(name, names) {
+    if (names.has(name)) return 'duplicate';
+    for (const n of names) {
+      if (n.startsWith(name + '/') || name.startsWith(n + '/')) return 'conflict';
+    }
+    return null;
+  },
+
+  /** اسم غير متعارض مع المجموعة: عند تعارض ملف/مجلد يُسطَّح المسار (a/b.js → a-b.js)، ثم تُضاف -2 و-3… قبل الامتداد */
+  resolveName(name, names) {
+    let c = U.pathConflict(name, names);
+    if (!c) return name;
+    let cand = c === 'conflict' ? name.replace(/\//g, '-') : name;
+    if (!U.pathConflict(cand, names)) return cand;
+    const dot = cand.lastIndexOf('.');
+    const slash = cand.lastIndexOf('/');
+    const hasExt = dot > slash + 1;
+    const stem = hasExt ? cand.slice(0, dot) : cand;
+    const ext = hasExt ? cand.slice(dot) : '';
+    let i = 2, out;
+    do { out = stem + '-' + i + ext; i++; } while (U.pathConflict(out, names) && i < 100000);
+    return out;
+  },
+
   /**
    * تنقية مدخلات JSON القادمة من الاستيراد/الاستعادة.
    * يقبل كائنًا {اسم: محتوى | {content}} فقط (المصفوفات مرفوضة).
@@ -128,23 +125,16 @@ const U = {
     const out = [];
     const used = new Set();
     for (const [k, v] of Object.entries(raw)) {
-      let name = U.safeFileName(k);
-      if (!name || name === '.' || name === '..') { notes.invalid++; continue; }
+      let name = U.safePath(k);
+      if (!name) { notes.invalid++; continue; }
       let content;
       if (typeof v === 'string') content = v;
       else if (v && typeof v === 'object' && typeof v.content === 'string') content = v.content;
       else { content = ''; notes.blank++; }
       if (content.length > KC.limits.maxFileChars) { notes.tooLarge++; continue; }
       if (out.length >= KC.limits.maxFiles) { notes.truncated++; continue; }
-      if (used.has(name)) {
-        const dot = name.lastIndexOf('.');
-        const stem = dot > 0 ? name.slice(0, dot) : name;
-        const ext = dot > 0 ? name.slice(dot) : '';
-        let i = 2, cand;
-        do { cand = stem + '-' + i + ext; i++; } while (used.has(cand));
-        name = cand;
-        notes.renamed++;
-      }
+      const resolved = U.resolveName(name, used);
+      if (resolved !== name) { name = resolved; notes.renamed++; }
       used.add(name);
       out.push({ id: U.uid(), name, content, updatedAt: Date.now() });
     }

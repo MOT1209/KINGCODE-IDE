@@ -23,9 +23,9 @@ What the 16 checks cover: dev-server behavior (malformed URL, traversal, CORS, M
 | T-02 | CSP/sandbox checks are substring greps, not behavior. | Medium | A broken policy would still pass; real behavior (blocked parent access) only verified by my manual probes. |
 | T-03 | Test coverage is dev-server-centric, but the server is a dev tool, not the product. | Medium | Effort skew. |
 | T-04 | No persistence/quota/reload tests. | High | F-01, F-02, F-03 undetected. |
-| T-05 | No PWA/offline/update tests. | Medium | F-06, F-07 undetected. |
+| T-05 | **STATUS: fixed — offline reload, cache isolation and a real two-version update flow are E2E-tested (1.3.0).** No PWA/offline/update tests. | Medium | F-06, F-07 undetected. |
 | T-06 | No responsive/visual or accessibility checks. | Medium | F-11, phone cramping undetected. |
-| T-07 | No lint/format; no `.editorconfig`. | Low | — |
+| T-07 | **STATUS: ESLint added in 1.3.0 (CI `lint` job); formatting/.editorconfig still absent.** No lint/format; no `.editorconfig`. | Low | — |
 | T-08 | Docs claim "16 guards for security"; they guard the dev server only. | Low | Overstated. |
 
 ## 3. Proposed strategy (zero new runtime deps)

@@ -41,6 +41,7 @@
   --radius-lg: 14px;
   --tab-h: 40px;
   --status-h: 28px;
+  --nav-h: 54px;
   --sidebar-w: 240px;
   --editor-font-size: 14px;
   --preview-basis: 41%;
@@ -119,7 +120,7 @@ a { color: var(--accent); }
 
 /* ---------- شريط الحالة (نمط VS Code) ---------- */
 .status-bar {
-  order: 2;
+  order: 3;
   flex: none;
   height: calc(var(--status-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -386,7 +387,17 @@ body.preview-hidden .preview-container { display: none !important; }
   .cursor-position, .language-info { display: none; }
   .status-bar { gap: 8px; padding-inline: 10px; }
 
-  #btnSplitPreview { display: none; }
+  #btnSplitPreview, #btnThemeToggle, #btnSettings, #btnSidebar { display: none; } /* في شريط التنقل السفلي/الإعدادات */
+
+  /* جزء واحد بملء الشاشة: المحرر أو المعاينة (مع الكونسول) */
+  body[data-mview="editor"] .preview-container { display: none !important; }
+  body[data-mview="preview"] .editor-pane { display: none !important; }
+  body[data-mview="preview"] .preview-container {
+    display: flex !important;
+    flex: 1 1 auto;
+    max-height: none;
+    border-top: 0;
+  }
 
   .tab { max-width: 160px; }
   .tab-label { max-width: 104px; }

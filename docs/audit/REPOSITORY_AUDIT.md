@@ -94,7 +94,7 @@ Severity scale: Critical = silent data loss/RCE in common flow; High = data loss
 ### F-10 — Startup toast noise — **LOW**
 `APP.checkForUpdate()` shows "Checking for updates…" on every launch (visible in phone screenshot, overlaps console area).
 
-### F-11 — Accessibility gaps — **LOW** (partly unverified)
+### F-11 — Accessibility gaps — **LOW** (partly unverified) — **STATUS: Tab trap, unnamed buttons/inputs, tree/option roles fixed in 1.2.0 (E2E-guarded); contrast and screen-reader flow still unmeasured**
 - `Tab` inside editor inserts spaces and cannot leave the editor by keyboard (WCAG 2.1.2 risk) — code-confirmed.
 - 23 `btn-icon` buttons rely on `title` only (no `aria-label`) — measured (probe3).
 - `role=option` rows contain nested buttons; palette `li` lack `role=option`.
@@ -110,7 +110,7 @@ Severity scale: Critical = silent data loss/RCE in common flow; High = data loss
 - **Evidence:** import `{zeta.txt}` → `kc.EDITOR.cm.getValue()` still returned the previous project's text and the status bar showed the old file; verified red on 1.0.8 by the `A-02` E2E test. Cause: `_applyImported` assigned `activeId` before `setActive()`, which exits early for an unchanged id, so `active:change` never fired. The next keystroke would write the stale text into the imported file.
 - **Fix:** `STATE.replaceProject` + explicit `active:change`. **Verify:** E2E `A-02`.
 
-### F-13 — Info
+### F-13 — Info (phone layout cramping **resolved in 1.4.0**: single-pane phone layout + bottom nav, tablet drawer closed by default, E2E-guarded)
 - Responsive layouts: no horizontal overflow at 390/820/1366 px (probe3). Phone layout is functional but cramped (preview+console+editor stacked; toast overlaps). Needs design pass, not a defect.
 - Large file: 100 k-line paste took ~300 ms; persisted state then reached 1.4 MB, close to the localStorage ceiling (see F-02).
 - Workflows verified OK: launch, edit, save, reload (outside the debounce window), tab switching, import → confirm → backup → restore, export JSON, offline reload, SW cache name.

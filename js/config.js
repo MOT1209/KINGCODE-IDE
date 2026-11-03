@@ -9,10 +9,7 @@
 const KC = {
 
   /** مصفوفة التوقيع — يُغيَّر عند تعديل بنية التخزين */
-  version: 'kingCode ' + '1.0.9',
-
-  /** مفتاح التخزين في localStorage */
-  storageKey: 'kingcode:state:v1',
+  version: 'kingCode ' + '1.4.1',
 
   /** فترات debounce (مللي ثانية) */
   timing: {
@@ -27,7 +24,9 @@ const KC = {
     consoleMax: 200,
     tabsMax: 12,
     maxFiles: 60,
-    maxFileChars: 2000000
+    maxFileChars: 2000000,
+    maxDepth: 8,       // أقصى عمق مسار (عدد المقاطع)
+    maxPathChars: 200
   },
 
   /* سمعات UI */
@@ -60,7 +59,7 @@ const KC = {
     <button id="magicBtn">✨ جرّب هذا الزر</button>
     <p id="magicOut"></p>
   </main>
-  <script src="script.js"><\/script>
+  <script src="script.js"></script>
 </body>
 </html>`
     },
@@ -205,14 +204,15 @@ console.info('نصيحة: Ctrl + S يفتح لوحة الحفظ اليدوي… 
 
 /* واجهات مساعدة على مستوى KC */
 KC.langFor = function langFor(name) {
-  if (!name) return KC.LANGS.txt;
-  const ext = String(name).split('.').pop().toLowerCase();
-  return KC.LANGS[ext] || KC.LANGS.txt;
+  const ext = extOf(name);
+  return (ext && KC.LANGS[ext]) || KC.LANGS.txt;
 };
 KC.extOf = extOf;
+/** امتداد الملف من اسم الملف الأخير في المسار فقط (نقطة داخل اسم مجلد لا تُحتسب) */
 function extOf(name) {
-  if (!name || !name.includes('.')) return '';
-  return String(name).split('.').pop().toLowerCase();
+  const base = String(name || '').split('/').pop();
+  if (!base.includes('.')) return '';
+  return base.split('.').pop().toLowerCase();
 }
 
 /** يعيد [اسم, محتوى] افتراضيين لملف جديد حسب الامتداد */

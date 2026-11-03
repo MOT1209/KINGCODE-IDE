@@ -18,11 +18,11 @@ const PreviewBuilder = {
 
     /* الملف النشط إن كان HTML، وإلا أول HTML في المشروع (index.html أولًا) */
     const active = files.find(f => f.id === activeId) || null;
-    if (active && KC.extOf(active.name) === 'html') return this.inject(active.content, files, opts);
+    if (active && KC.extOf(active.name) === 'html') return this.inject(active.content, files, Object.assign({}, opts, { baseDir: U.dirName(active.name) }));
 
     const index = files.find(f => f.name.toLowerCase() === 'index.html') ||
       files.find(f => KC.extOf(f.name) === 'html');
-    if (index) return this.inject(index.content, files, opts);
+    if (index) return this.inject(index.content, files, Object.assign({}, opts, { baseDir: U.dirName(index.name) }));
 
     /* لا HTML: غلاف لعرض CSS/JS/MD النشط */
     return this.fallback(active || files[0]);
@@ -31,7 +31,7 @@ const PreviewBuilder = {
   fallback(f) {
     const ext = KC.extOf(f.name);
     const esc = U.escapeHtml(f.content || '');
-    let body = '';
+    let body;
 
     if (ext === 'css') {
       body = `<style>${f.content.replace(/<\/style/gi, '<\\/style')}</style>
@@ -40,7 +40,7 @@ const PreviewBuilder = {
       <style>.kc-demo{font-family:system-ui;padding:40px;display:grid;place-items:center;text-align:center;gap:12px}
       .kc-btn{padding:10px 24px;border:0;border-radius:10px;cursor:pointer}</style>`;
     } else if (ext === 'js' || ext === 'mjs') {
-      body = `<script>${f.content.replace(/<\/script/gi, '<\\/script')}\n<\/script>
+      body = `<script>${f.content.replace(/<\/script/gi, '<\\/script')}\n</script>
 <p style="font:14px system-ui;padding:16px">انظر الكونسول للنتائج ⤵</p>`;
     } else if (ext === 'json') {
       body = `<pre>${esc}</pre>`;
@@ -60,13 +60,26 @@ const PreviewBuilder = {
     const byName = new Map();
     files.forEach(f => byName.set(f.name.toLowerCase(), f));
 
-    const mapFor = href => {
+    /* حل المسار النسبي لمستند HTML: ./ و ../ ومسارات تبدأ بـ «/» (جذر المشروع)؛ وإن لم يوجد يُجرَّب اسم الملف المجرد */
+    const baseDir = opts.baseDir || '';
+    const resolve = href => {
       if (!href) return null;
-      let k = href.split(/[?#]/)[0].trim().toLowerCase();
-      k = k.replace(/^\.?\//, '');
-      if (/^https?:\/\//i.test(k)) return null; /* خارجي: غير مدعوم (المعاينة بلا شبكة) */
-      if (byName.has(k)) return byName.get(k);
-      return byName.get(k.split('/').pop()) || null;
+      let k = href.split(/[?#]/)[0].trim();
+      if (!k || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(k)) return null; /* خارجي (http:, data:, //cdn) */
+      const parts = k.startsWith('/') ? [] : (baseDir ? baseDir.split('/') : []);
+      for (const seg of k.split('/')) {
+        if (!seg || seg === '.') continue;
+        if (seg === '..') { if (!parts.length) return null; parts.pop(); } else parts.push(seg);
+      }
+      return parts.join('/').toLowerCase();
+    };
+    const mapFor = href => {
+      const key = resolve(href);
+      if (!key) return null;
+      if (byName.has(key)) return byName.get(key);
+      const base = key.split('/').pop();
+      for (const [n, f] of byName) if (n.split('/').pop() === base) return f; /* احتياط: اسم الملف المجرد */
+      return null;
     };
 
     let out = opts.bridge === false ? content : this.bridge() + content;
@@ -83,7 +96,7 @@ const PreviewBuilder = {
     out = out.replace(/<script\b[^>]*src=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (whole, src) => {
       const f = mapFor(src);
       if (!f) return whole;
-      return '<script data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n<\/script>';
+      return '<script data-kc-src="' + U.escapeHtml(f.name) + '">\n' + f.content.replace(/<\/script/gi, '<\\/script') + '\n</script>';
     });
 
     return out;
@@ -124,6 +137,6 @@ const PreviewBuilder = {
   });
   console.log('[kingCode] المعاينة جاهزة داخل sandbox آمن');
 })();
-<\/script>`;
+</script>`;
   }
 };

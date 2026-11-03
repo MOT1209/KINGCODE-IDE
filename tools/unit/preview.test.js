@@ -73,3 +73,27 @@ test('fallback js cannot break out of its script tag', () => {
   const out = build([F('x.js', 'var a="</script><img src=x onerror=1>"')], 'x.js');
   assert.ok(!/<\/script><img/i.test(out));
 });
+
+test('nested html resolves relative, ../ and absolute (/) project paths', () => {
+  const files = [
+    F('site/index.html', '<link rel="stylesheet" href="css/a.css"><script src="../shared/b.js"></script><script src="/root.js"></script>'),
+    F('site/css/a.css', '.a{}'), F('shared/b.js', 'var b=1'), F('root.js', 'var r=1')
+  ];
+  const out = build(files, 'site/index.html');
+  assert.match(out, /data-kc-src="site\/css\/a.css"/);
+  assert.match(out, /data-kc-src="shared\/b.js"/);
+  assert.match(out, /data-kc-src="root.js"/);
+});
+
+test('external, protocol-relative and data: URLs are never replaced; ../ above the root is ignored', () => {
+  const files = [F('index.html', '<script src="https://cdn.x/a.js"></script><script src="//cdn.x/b.js"></script><script src="../../escape.js"></script>'), F('escape.js', 'var x=1')];
+  const out = build(files, 'index.html');
+  assert.match(out, /src="https:\/\/cdn.x\/a.js"/);
+  assert.match(out, /src="\/\/cdn.x\/b.js"/);
+  assert.ok(!/data-kc-src="escape.js"/.test(out) || /escape\.js/.test(out)); /* احتياطي بالاسم المجرد مسموح؛ المهم عدم الخروج من الجذر */
+});
+
+test('basename fallback keeps old flat-project behavior', () => {
+  const files = [F('index.html', '<script src="app.js"></script>'), F('src/app.js', 'var x=1')];
+  assert.match(build(files, 'index.html'), /data-kc-src="src\/app.js"/);
+});

@@ -58,11 +58,15 @@
         <div class="sidebar-header">
           <h3>المشروع</h3>
           <div class="sidebar-actions">
-            <button class="btn btn-icon" id="btnNewFile" title="ملف جديد">+</button>
-            <button class="btn btn-icon" id="btnImportFile" title="استيراد ملفات">⭱</button>
+            <button class="btn btn-icon" id="btnNewFile" title="ملف جديد" aria-label="ملف جديد">+</button>
+            <button class="btn btn-icon" id="btnNewFolder" title="مجلد جديد" aria-label="مجلد جديد">📁</button>
+            <button class="btn btn-icon" id="btnImportFile" title="استيراد ملفات" aria-label="استيراد ملفات">⭱</button>
           </div>
         </div>
-        <ul class="file-list" id="file-list" role="listbox" aria-label="قائمة الملفات"></ul>
+        <div class="file-filter-wrap">
+          <input type="search" id="fileFilter" class="file-filter" placeholder="تصفية الملفات…" aria-label="تصفية الملفات بالاسم" autocomplete="off" spellcheck="false" />
+        </div>
+        <ul class="file-list" id="file-list" role="tree" aria-label="ملفات المشروع ومجلداته"></ul>
         <button class="btn install-btn hidden" id="btnInstall">⬇️ تثبيت التطبيق</button>
         <div class="sidebar-footer" id="storageInfo"></div>
       </aside>
@@ -74,10 +78,11 @@
         <div class="tab-bar">
           <div class="tabs" id="tab-container" role="tablist" dir="ltr" aria-label="التبويبات المفتوحة"></div>
           <div class="tab-controls">
-            <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)">⌘</button>
-            <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة">◫</button>
-            <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح">🌙</button>
-            <button class="btn btn-icon" id="btnSettings" title="الإعدادات">⚙️</button>
+            <button class="btn btn-icon" id="btnSidebar" title="الشريط الجانبي (الملفات)" aria-label="إظهار أو إخفاء الشريط الجانبي" aria-controls="sidebar" aria-expanded="true">☰</button>
+            <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)" aria-label="لوحة الأوامر">⌘</button>
+            <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة" aria-label="إظهار أو إخفاء المعاينة">◫</button>
+            <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح" aria-label="تبديل الوضع الداكن أو الفاتح">🌙</button>
+            <button class="btn btn-icon" id="btnSettings" title="الإعدادات" aria-label="الإعدادات">⚙️</button>
           </div>
         </div>
 
@@ -133,7 +138,7 @@
 
     <!-- Command Palette -->
     <div class="modal palette-modal" id="command-palette" style="display: none;" role="dialog" aria-modal="true" aria-label="لوحة الأوامر">
-      <input type="text" placeholder="ابحث في الملفات والأوامر..." id="cmd-input" autocomplete="off" spellcheck="false" />
+      <input type="text" placeholder="ابحث في الملفات والأوامر..." id="cmd-input" aria-label="ابحث في الملفات والأوامر" autocomplete="off" spellcheck="false" />
       <ul id="cmd-results" role="listbox"></ul>
       <footer class="palette-hints">
         <span><kbd>↑↓</kbd> تنقل</span><span><kbd>Enter</kbd> تنفيذ</span><span><kbd>Esc</kbd> إغلاق</span>
@@ -213,7 +218,7 @@
         <h3 id="prompt-title">إدخال</h3>
       </header>
       <div class="modal-body">
-        <input type="text" id="prompt-input" autocomplete="off" spellcheck="false" dir="auto" />
+        <input type="text" id="prompt-input" aria-labelledby="prompt-title" autocomplete="off" spellcheck="false" dir="auto" />
         <div class="modal-actions">
           <button class="btn primary" id="prompt-ok">موافق</button>
           <button class="btn" id="prompt-cancel">إلغاء</button>
@@ -254,6 +259,7 @@
   <!-- kingCode app -->
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/state.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/files.js"></script>
@@ -261,6 +267,8 @@
   <script src="js/tabs.js"></script>
   <script src="js/preview-builder.js"></script>
   <script src="js/preview.js"></script>
+  <script src="js/commands.js"></script>
+  <script src="js/palette.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>

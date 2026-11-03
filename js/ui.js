@@ -1,177 +1,9 @@
 /* =========================================================
- * kingCode — ui.js (Command Palette + Commands)
- * القلب العصبي: لوحة أوامر بحثية وسجل أوامر مرجعي
+ * kingCode — ui.js
+ * الواجهة: النوافذ، الإشعارات، الكونسول، الإعدادات، الاختصارات العامة، الاستجابة، التثبيت
+ * (سجل الأوامر في commands.js ولوحة الأوامر في palette.js)
  * ========================================================= */
 'use strict';
-
-/**
- * سجل الأوامر المركزي — كل وحدة تحكم تستخدم نفس الواجهة.
- * الأمر: { id, label, hint, group, meta, run }
- */
-const Commands = {
-  _cmds: new Map(),
-
-  add(cmd) {
-    this._cmds.set(cmd.id, Object.assign({
-      group: 'الأوامر', label: cmd.id, run: () => {}
-    }, cmd));
-  },
-
-  run(id) {
-    const cmd = this._cmds.get(id);
-    if (!cmd) { console.warn('[kingCode] no command', id); return; }
-    try { cmd.run(); } catch (e) { console.error('[kingCode] command failed', id, e); }
-  },
-
-  list() { return Array.from(this._cmds.values()); }
-};
-
-/* ---------- إدخال الأوامر المتاحة ---------- */
-
-Commands.add({ id: 'ui.palette', label: 'لوحة الأوامر (بحث وفتح)', group: 'التحكم', hint: 'Ctrl+P', run: () => UI.openCommandPalette() });
-Commands.add({ id: 'files.new', label: 'ملف جديد', group: 'ملفات', hint: '＋', run: () => FILES.newFile() });
-Commands.add({ id: 'files.save', label: 'حفظ الملف الحالي', group: 'ملفات', hint: 'Ctrl+S', run: () => FILES.saveFile(STATE.data.activeId) });
-Commands.add({ id: 'files.saveAll', label: 'حفظ كل الملفات', group: 'ملفات', run: () => {
-  STATE.files().forEach(f => STATE.markDirty(f.id, false));
-  STATE.persist();
-  if (STATE.flush()) { UI.saveFlash(); UI.toast('تم حفظ كل الملفات 💾'); }
-  else UI.toast('تعذّر الحفظ: مساحة التخزين ممتلئة — صدِّر المشروع الآن ⚠️', 'error', 6000);
-}});
-Commands.add({ id: 'files.rename', label: 'إعادة تسمية الملف الحالي', group: 'ملفات', run: () => FILES.renameUI(STATE.data.activeId) });
-Commands.add({ id: 'files.download', label: 'تنزيل الملف الحالي', group: 'ملفات', run: () => FILES.download(STATE.data.activeId) });
-Commands.add({ id: 'files.exportHTML', label: 'تصدير المشروع كملف HTML مستقل', group: 'ملفات', run: () => FILES.exportProjectHTML() });
-Commands.add({ id: 'files.delete', label: 'حذف الملف الحالي', group: 'ملفات', run: () => FILES.remove(STATE.data.activeId) });
-Commands.add({ id: 'files.restoreBackup', label: 'استعادة نسخة ما قبل الاستيراد', group: 'ملفات', run: () => FILES.restoreBackup() });
-
-Commands.add({ id: 'preview.refresh', label: 'تحديث المعاينة', group: 'معاينة', hint: 'Ctrl+Enter', run: () => PREVIEW.refresh() });
-Commands.add({ id: 'preview.console.toggle', label: 'فتح/إخفاء الكونسول', group: 'معاينة', hint: 'Shift+Enter',
-  run: () => STATE.setSetting('consoleOpen', !STATE.settings().consoleOpen) });
-Commands.add({ id: 'preview.console.clear', label: 'مسح سجل الكونسول', group: 'معاينة', run: () => UI.consoleClear() });
-
-Commands.add({ id: 'ui.preview.toggle', label: 'إظهار/إخفاء المعاينة', group: 'بالشاشة', run: () => UI.togglePreview() });
-Commands.add({ id: 'ui.sidebar.toggle', label: 'إظهار/إخفاء الشريط الجانبي', group: 'بالشاشة', run: () => UI.toggleSidebar() });
-Commands.add({ id: 'ui.theme.toggle', label: 'تبديل الوضع الداكن/الفاتح', group: 'بالشاشة', run: () => UI.toggleUiTheme() });
-Commands.add({ id: 'ui.settings', label: 'فتح الإعدادات', group: 'بالشاشة', run: () => UI.openSettings() });
-Commands.add({ id: 'editor.zoomIn', label: 'تكبير خط المحرر', group: 'محرر', hint: 'Ctrl+=', run: () => {
-  const s = Math.min(30, STATE.settings().fontSize + 1); STATE.setSetting('fontSize', s);
-}});
-Commands.add({ id: 'editor.zoomOut', label: 'تصغير خط المحرر', group: 'محرر', hint: 'Ctrl+-', run: () => {
-  const s = Math.max(10, STATE.settings().fontSize - 1); STATE.setSetting('fontSize', s);
-}});
-Commands.add({ id: 'tabs.close', label: 'إغلاق التبويب الحالي', group: 'تبويبات', run: () => TABS.close(STATE.data.activeId) });
-Commands.add({ id: 'tabs.closeAll', label: 'إغلاق كل التبويبات', group: 'تبويبات', run: () => TABS.closeAll() });
-Commands.add({ id: 'tabs.next', label: 'التبويب التالي', group: 'تبويبات', hint: 'Alt+→', run: () => TABS.cycle(1) });
-Commands.add({ id: 'tabs.prev', label: 'التبويب السابق', group: 'تبويبات', hint: 'Alt+←', run: () => TABS.cycle(-1) });
-Commands.add({ id: 'app.install', label: 'تثبيت kingCode كتطبيق', group: 'نظام', run: () => UI.promptInstall() });
-Commands.add({ id: 'app.update', label: 'التحقق من تحديثات kingCode', group: 'نظام', run: () => UI.checkForUpdate() });
-Commands.add({ id: 'app.applyUpdate', label: 'تطبيق التحديث الجاهز وإعادة التحميل', group: 'نظام', run: () => APP.applyUpdate() });
-
-/* ---------- لوحة الأوامر (Command Palette) ---------- */
-
-const PALETTE = {
-  root: null, input: null, results: null,
-  items: [], sel: 0,
-
-  init() {
-    this.root = U.$('#command-palette');
-    this.input = U.$('#cmd-input');
-    this.results = U.$('#cmd-results');
-
-    this.input.addEventListener('input', () => this.refresh());
-    this.input.addEventListener('keydown', e => {
-      if (e.key === 'ArrowDown') { e.preventDefault(); this.move(1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); this.move(-1); }
-      else if (e.key === 'Enter') { e.preventDefault(); this.exec(); }
-      else if (e.key === 'Escape') { e.preventDefault(); UI.closeModal('command-palette'); }
-    });
-
-    this.results.addEventListener('click', e => {
-      const li = e.target.closest('li');
-      if (li && li.dataset.index != null) {
-        this.sel = +li.dataset.index;
-        this.exec();
-      }
-    });
-  },
-
-  open() {
-    this.input.value = '';
-    this.refresh();
-    UI.openModal('command-palette');
-    setTimeout(() => this.input.focus(), 60);
-  },
-
-  close() { UI.closeModal('command-palette'); },
-
-  /** مصادر النتائج: أوامر + ملفات المشروع */
-  collect(q) {
-    q = (q || '').trim().toLowerCase();
-    const items = [];
-
-    /* ملفات المشروع */
-    STATE.files().forEach(f => {
-      const nl = f.name.toLowerCase();
-      if (q && !nl.includes(q)) return;
-      items.push({
-        kind: 'file', label: f.name, sub: KC.langFor(f.name).label, icon: '📄',
-        run: () => { TABS.open(f.id); }
-      });
-    });
-
-    /* الأوامر */
-    Commands.list().forEach(c => {
-      if (q && !c.label.toLowerCase().includes(q)) return;
-      items.push({ kind: 'cmd', label: c.label, sub: c.group, meta: c.hint, icon: '⚡', run: c.run });
-    });
-
-    return items.slice(0, 14);
-  },
-
-  refresh() {
-    this.items = this.collect(this.input.value);
-    this.sel = 0;
-    const frag = document.createDocumentFragment();
-
-    if (!this.items.length) {
-      const li = document.createElement('li');
-      li.className = 'cmd-item empty';
-      li.textContent = 'لا توجد نتائج مطابقة';
-      frag.appendChild(li);
-    } else {
-      this.items.forEach((it, i) => {
-        const li = document.createElement('li');
-        li.className = 'cmd-item' + (i === this.sel ? ' selected' : '');
-        li.dataset.index = i;
-        li.innerHTML = `
-          <span class="cmd-ico">${it.icon}</span>
-          <span class="cmd-label" dir="auto">${U.escapeHtml(it.label)}</span>
-          <span class="cmd-sub">${U.escapeHtml(it.sub || '')}</span>
-          <span class="cmd-meta" dir="ltr">${U.escapeHtml(it.meta || '')}</span>`;
-        frag.appendChild(li);
-      });
-    }
-    this.results.replaceChildren(frag);
-    const selEl = U.$('li.selected', this.results);
-    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
-  },
-
-  move(dir) {
-    if (!this.items.length) return;
-    this.sel = (this.sel + dir + this.items.length) % this.items.length;
-    U.$$('li.cmd-item', this.results).forEach((li, i) => {
-      li.classList.toggle('selected', i === this.sel);
-    });
-    const selEl = U.$('li.selected', this.results);
-    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
-  },
-
-  exec() {
-    const it = this.items[this.sel];
-    if (!it) return;
-    this.close();
-    it.run();
-  }
-};
 
 /* =========================================================
  * UI — العناصر التفاعلية: toasts، dialogs، toggles، الحالة
@@ -194,6 +26,7 @@ const UI = {
     U.$('#btnSplitPreview')?.addEventListener('click', () => UI.togglePreview());
     U.$('#btnConsoleToggle')?.addEventListener('click', () => UI.toggleConsole());
     U.$('#btnNewFile')?.addEventListener('click', () => FILES.newFile());
+    U.$('#btnNewFolder')?.addEventListener('click', () => FILES.newFolder());
     U.$('#btnImportFile')?.addEventListener('click', () => FILES.importFiles());
     U.$('#btnExport')?.addEventListener('click', () => FILES.exportProject());
     U.$('#btnImport')?.addEventListener('click', () => FILES.importProject());
@@ -201,6 +34,7 @@ const UI = {
     /* أزرار معرَّفة بـ data-action (بديل onclick المضمَّن — يسمح بسياسة CSP بلا 'unsafe-inline' للسكربت) */
     const ACTIONS = {
       'files.new': () => FILES.newFile(),
+      'files.newFolder': () => FILES.newFolder(),
       'files.exportHTML': () => FILES.exportProjectHTML(),
       'preview.refresh': () => PREVIEW.refresh(),
       'ui.togglePreview': () => UI.togglePreview(),
@@ -303,16 +137,19 @@ const UI = {
             return;
           }
         }
-        if (this.isModalOpen('command-palette')) { e.preventDefault(); PALETTE.close(); }
+        if (this.isModalOpen('command-palette')) { e.preventDefault(); PALETTE.close(); return; }
+        /* الدرج المؤقت (جوال/آيباد) يُغلق بـ Esc */
+        const app = U.$('.app-container');
+        if (!document.body.classList.contains('view-desktop') && app && app.classList.contains('sidebar-open')) { e.preventDefault(); this.setSidebar(false); }
         return;
       }
 
-      /* Alt+أسهم لتنقّل التبويبات خارج المحرر أيضًا (RTL-aware: يسار=التالي في RTL) */
+      /* Alt+→ التبويب التالي، Alt+← السابق (شريط التبويبات LTR كما في README). داخل المحرر يعالجها CodeMirror بنفس
+         المعنى وتصل الحدث هنا defaultPrevented — كانت المعالجتان تتعاكسان فتُلغي إحداهما الأخرى */
       if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        if (e.defaultPrevented) return;
         e.preventDefault();
-        /* في RTL: ArrowLeft يتحرك للأمام (التالي)، ArrowRight للخلف (السابق) */
-        const dir = e.key === 'ArrowLeft' ? 1 : -1;
-        TABS.cycle(dir);
+        TABS.cycle(e.key === 'ArrowRight' ? 1 : -1);
         return;
       }
 
@@ -328,8 +165,8 @@ const UI = {
 
     /* نتائج الحفظ + تفريغ الحفظ المعلّق عند مغادرة الصفحة (يمنع ضياع آخر ≤250ms من التعديل) */
     STATE.on('persisted', res => UI.onPersisted(res));
-    window.addEventListener('pagehide', () => STATE.flush());
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') STATE.flush(); });
+    window.addEventListener('pagehide', () => STATE.flushSync());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') STATE.flushSync(); });
 
     /* الحفظ بعد ذروة الإنعاش */
     window.addEventListener('beforeunload', e => {
@@ -542,23 +379,37 @@ const UI = {
   },
 
   toggleSidebar() {
-    this.setSidebar(!STATE.uiPrefs().sidebarOpen);
+    const el = U.$('.app-container');
+    this.setSidebar(!(el && el.classList.contains('sidebar-open')));
   },
 
+  /** على سطح المكتب يُحفظ اختيار المستخدم؛ على الجوال/الآيباد الشريط درج مؤقت (يبدأ مغلقًا ولا يُحفظ) */
   setSidebar(open) {
+    open = !!open;
     const el = U.$('.app-container');
-    /* حماية من الحلقة: اكتب فقط عند التغيير الفعلي */
-    if (el && el.classList.contains('sidebar-open') !== !!open) {
-      el.classList.toggle('sidebar-open', !!open);
-    }
-    if (STATE.uiPrefs().sidebarOpen !== open) STATE.setPref('sidebarOpen', open);
+    if (el && el.classList.contains('sidebar-open') !== open) el.classList.toggle('sidebar-open', open);
+    const desktop = document.body.classList.contains('view-desktop');
+    if (desktop && STATE.uiPrefs().sidebarOpen !== open) STATE.setPref('sidebarOpen', open);
+    const btn = U.$('#btnSidebar');
+    if (btn) btn.setAttribute('aria-expanded', String(open));
+    const nav = U.$('.mobile-quickbar [data-nav="files"]');
+    if (nav) nav.setAttribute('aria-expanded', String(open));
+  },
+
+  /** الجوال: جزء واحد بملء الشاشة في كل مرة — 'editor' أو 'preview' */
+  setMobileView(view) {
+    document.body.dataset.mview = view === 'preview' ? 'preview' : 'editor';
+    U.$$('.mobile-quickbar [data-nav="editor"], .mobile-quickbar [data-nav="preview"]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.nav === document.body.dataset.mview));
+    });
+    if (document.body.dataset.mview === 'preview') PREVIEW.refresh();
+    else if (EDITOR.cm) EDITOR.cm.refresh();
   },
 
   /* ---------- محاور الاستجابة (الموبايل/الآيباد) ---------- */
 
   setupResponsive() {
-    const applySidebar = open => this.setSidebar(open);
-    STATE.on('pref:sidebarOpen', applySidebar);
+    STATE.on('pref:sidebarOpen', open => this.setSidebar(open));
 
     const m1 = window.matchMedia(KC.ui.mobileQuery);
     const m2 = window.matchMedia(KC.ui.tabletQuery);
@@ -567,36 +418,40 @@ const UI = {
       const isTablet = m2.matches;
       document.body.classList.toggle('view-mobile', isMobile);
       document.body.classList.toggle('view-tablet', isTablet && !isMobile);
-      document.body.classList.toggle('view-desktop', !m2.matches);
-      /* الموبايل: أغلق الشريط الجانبي تلقائيًا */
-      if (isMobile && STATE.uiPrefs().sidebarOpen) this.setSidebar(false);
+      document.body.classList.toggle('view-desktop', !isTablet);
+      /* الجوال والآيباد: الشريط الجانبي درج مؤقت يبدأ مغلقًا؛ سطح المكتب: يعود لاختيار المستخدم المحفوظ */
+      this.setSidebar(isTablet ? false : STATE.uiPrefs().sidebarOpen);
+      if (!isMobile) delete document.body.dataset.mview;
+      else if (!document.body.dataset.mview) this.setMobileView('editor');
+      if (EDITOR.cm) EDITOR.cm.refresh();
     };
+
+    /* شريط تنقل سفلي (الجوال): الملفات | المحرر | المعاينة | الإعدادات — في تدفق الصفحة لا عائمًا فوق المحتوى */
+    const nav = document.createElement('nav');
+    nav.className = 'mobile-quickbar';
+    nav.setAttribute('aria-label', 'التنقل بين أجزاء التطبيق');
+    nav.innerHTML =
+      '<button type="button" data-nav="files" aria-label="الملفات" aria-expanded="false"><span class="nav-ico" aria-hidden="true">☰</span><span class="nav-lbl">الملفات</span></button>' +
+      '<button type="button" data-nav="editor" aria-label="المحرر" aria-pressed="true"><span class="nav-ico" aria-hidden="true">✏️</span><span class="nav-lbl">المحرر</span></button>' +
+      '<button type="button" data-nav="preview" aria-label="المعاينة" aria-pressed="false"><span class="nav-ico" aria-hidden="true">👁</span><span class="nav-lbl">المعاينة</span></button>' +
+      '<button type="button" data-nav="settings" aria-label="الإعدادات"><span class="nav-ico" aria-hidden="true">⚙️</span><span class="nav-lbl">الإعدادات</span></button>';
+    nav.addEventListener('click', e => {
+      const b = e.target.closest('[data-nav]');
+      if (!b) return;
+      const a = b.dataset.nav;
+      if (a === 'files') UI.toggleSidebar();
+      else if (a === 'settings') UI.openSettings();
+      else { UI.setSidebar(false); UI.setMobileView(a); }
+    });
+    U.$('.app-container').appendChild(nav);
+
     m1.addEventListener?.('change', onChange);
     m2.addEventListener?.('change', onChange);
     onChange();
 
-    /* زر هامبرغر عائم (الأجهزة الصغيرة والمتوسطة) */
-    const burger = document.createElement('button');
-    burger.className = 'btn btn-icon edge-toggle';
-    burger.innerHTML = '☰';
-    burger.setAttribute('title', 'الشريط الجانبي');
-    burger.addEventListener('click', () => UI.toggleSidebar());
-    U.$('.app-container').prepend(burger);
-
-    /* أزرار سرعة على موبايل */
-    const bar = document.createElement('div');
-    bar.className = 'mobile-quickbar';
-    bar.innerHTML =
-      '<button class="btn btn-icon" title="الشريط الجانبي">☰</button>' +
-      '<button class="btn btn-icon" title="الملف السابق">⬅</button>' +
-      '<button class="btn btn-icon" title="الملف التالي">➡</button>' +
-      '<button class="btn btn-icon" title="الإعدادات">⚙️</button>';
-    const [b1, b2, b3, b4] = bar.children;
-    b1.addEventListener('click', () => UI.toggleSidebar());
-    b2.addEventListener('click', () => TABS.cycle(-1));
-    b3.addEventListener('click', () => TABS.cycle(1));
-    b4.addEventListener('click', () => UI.openSettings());
-    U.$('.app-container').appendChild(bar);
+    U.$('#btnSidebar')?.addEventListener('click', () => UI.toggleSidebar());
+    /* النقر على الطبقة المعتمة خلف الدرج يغلقه */
+    U.$('#sidebarOverlay')?.addEventListener('click', () => UI.setSidebar(false));
 
     /* مقبض تقسيم عرض المعاينة (سطح المكتب فقط) */
     const split = U.$('#mainSplit');

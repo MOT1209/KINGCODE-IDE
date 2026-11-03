@@ -5,15 +5,11 @@
  * ========================================================= */
 'use strict';
 
-const IMPORT_BACKUP_KEY = 'kingcode:import-backup:v1';
-
 const FILES = {
 
   /** أسماء ملفات العرض UTC */
   _reservedFor(r) {
-    let n = U.safeFileName(r);
-    if (!n) n = 'untitled';
-    return n;
+    return U.safePath(r) || 'untitled';
   },
 
   /* ---------- الإمداد الأساسي (الواجهة فقط؛ الثوابت في STATE) ---------- */
@@ -21,7 +17,8 @@ const FILES = {
   REASONS: {
     invalid: ['اسم الملف غير صالح ✋', 'warn'],
     limit: ['بلغت الحد الأقصى من الملفات (' + KC.limits.maxFiles + ') ⚠️', 'warn'],
-    duplicate: ['يوجد ملف بنفس الاسم 📛', 'warn']
+    duplicate: ['يوجد ملف أو مجلد بنفس الاسم 📛', 'warn'],
+    conflict: ['يتعارض الاسم مع مجلد أو ملف موجود (ملف ومجلد لا يشتركان في المسار) 📛', 'warn']
   },
 
   create(name, content, { silent = false } = {}) {
@@ -45,6 +42,7 @@ const FILES = {
     const r = STATE.renameFile(id, this._reservedFor(newName));
     if (!r.ok) {
       if (r.reason === 'duplicate') UI.toast('الاسم محجوز لملف آخر 📛', 'warn');
+      else if (r.reason === 'conflict') UI.toast(this.REASONS.conflict[0], 'warn');
       else if (r.reason === 'invalid') UI.toast('الاسم غير صالح ✋', 'warn');
       return;
     }
@@ -88,15 +86,74 @@ const FILES = {
   duplicate(id) {
     const f = STATE.file(id);
     if (!f) return;
-    const ext = KC.extOf(f.name);
-    const stem = ext ? f.name.slice(0, -(ext.length + 1)) : f.name;
-    const name = STATE.uniqueName(stem + ' copy' + (ext ? '.' + ext : ''));
+    const dir = U.dirName(f.name);
+    const base = U.baseName(f.name);
+    const ext = KC.extOf(base);
+    const stem = ext ? base.slice(0, -(ext.length + 1)) : base;
+    const name = STATE.uniqueName((dir ? dir + '/' : '') + stem + ' copy' + (ext ? '.' + ext : ''));
     return this.create(name, f.content);
   },
 
-  newFile() {
-    UI.prompt({ title: 'ملف جديد', placeholder: 'مثال: app.js أو style.css' }, name => {
-      if (name) this.create(name);
+  newFile(folder) {
+    const dir = typeof folder === 'string' ? folder : '';
+    UI.prompt({ title: dir ? 'ملف جديد داخل ' + dir : 'ملف جديد', value: dir ? dir + '/' : '', placeholder: 'مثال: app.js أو src/style.css' }, name => {
+      if (name && name !== dir + '/') this.create(name);
+    });
+  },
+
+  /* ---------- المجلدات ---------- */
+
+  newFolder(parent) {
+    const dir = typeof parent === 'string' ? parent : '';
+    UI.prompt({ title: dir ? 'مجلد جديد داخل ' + dir : 'مجلد جديد', value: dir ? dir + '/' : '', placeholder: 'مثال: src أو assets/img' }, name => {
+      if (!name || name === dir + '/') return;
+      const r = STATE.addFolder(name);
+      if (!r.ok) { const m = this.REASONS[r.reason] || this.REASONS.invalid; UI.toast(m[0], m[1]); return; }
+      FILE_LIST.render();
+      UI.toast('تم إنشاء المجلد «' + r.path + '» 📁');
+      STATE.emit('files:change', null);
+    });
+  },
+
+  renameFolderUI(path) {
+    UI.prompt({ title: 'إعادة تسمية/نقل المجلد «' + path + '»', value: path }, name => {
+      if (!name || name === path) return;
+      const r = STATE.renameFolder(path, name);
+      if (!r.ok) {
+        const msg = { inside: 'لا يمكن نقل مجلد إلى داخل نفسه ✋', conflict: this.REASONS.conflict[0], duplicate: 'يوجد مجلد بهذا الاسم 📛', invalid: 'الاسم غير صالح ✋' }[r.reason];
+        if (msg) UI.toast(msg, 'warn');
+        return;
+      }
+      r.ids.forEach(id => { STATE.emit('file:renamed', id); }); /* يعيد المحرر بناء Doc لتحديث نمط اللغة */
+      FILE_LIST.render();
+      TABS.render();
+      UI.updateStatusFile();
+      PREVIEW.schedule(true);
+      UI.toast('تم نقل المجلد إلى «' + STATE.folderPaths().find(p => p === U.safePath(name)) + '» (' + r.ids.length + ' ملف)');
+      STATE.emit('files:change', null);
+    });
+  },
+
+  removeFolderUI(path) {
+    const n = STATE.filesInFolder(path).length;
+    if (n >= STATE.files().length) { UI.toast('لا يمكن حذف مجلد يحوي كل ملفات المشروع 🔒', 'warn'); return; }
+    UI.confirm({
+      title: 'حذف المجلد؟',
+      message: 'سيمسح المجلد «' + path + '» و' + n + ' ملف بداخله نهائيًا ولا يمكن استرجاعها. هل تريد المتابعة؟',
+      danger: true,
+      okLabel: 'حذف نهائي'
+    }, ok => {
+      if (!ok) return;
+      const r = STATE.removeFolder(path);
+      if (!r.ok) return;
+      r.removed.forEach(f => { if (EDITOR.docs.has(f.id)) EDITOR.docs.delete(f.id); });
+      FILE_LIST.render();
+      TABS.render();
+      if (r.activeId) EDITOR.open(r.activeId);
+      PREVIEW.schedule(true);
+      UI.updateStatusFile();
+      UI.toast('تم حذف المجلد «' + path + '» 🗑');
+      STATE.emit('files:change', null);
     });
   },
 
@@ -108,15 +165,15 @@ const FILES = {
     });
   },
 
-  saveFile(id) {
+  async saveFile(id) {
     const f = STATE.file(id);
     if (!f) return;
     if (STATE.data.activeId === id && EDITOR.cm) {
       f.content = EDITOR.cm.getValue();
     }
     STATE.markDirty(id, false);
-    STATE.persist();
-    if (STATE.flush()) {
+    STATE.persist(id);
+    if (await STATE.flush()) {
       UI.saveFlash('done');
       UI.toast('حُفظ «' + f.name + '» 💾');
     } else {
@@ -130,9 +187,9 @@ const FILES = {
   download(id) {
     const f = STATE.file(id);
     if (!f) return;
-    const mime = { 'html': 'text/html', 'css': 'text/css', 'js': 'text/javascript', 'mjs': 'text/javascript' }
-      [KC.extOf(f.name)] || 'text/plain';
-    if (U.downloadText(f.name, f.content, mime)) UI.toast('تم تنزيـل «' + f.name + '» ⤓');
+    const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript', mjs: 'text/javascript' };
+    const mime = MIME[KC.extOf(f.name)] || 'text/plain';
+    if (U.downloadText(U.baseName(f.name), f.content, mime)) UI.toast('تم تنزيـل «' + f.name + '» ⤓');
   },
 
   exportProject() {
@@ -152,15 +209,9 @@ const FILES = {
   /* ---------- نسخة احتياطية ما قبل الاستيراد (بند 1.6 من docs/audit/DEVELOPMENT_ROADMAP) ---------- */
 
   /** يصوغ نسخة احتياطية من المشروع الحالي قبل استبداله بالاستيراد؛ يعيد true عند النجاح، وإلا يسجّل تحذيرًا في الكونسول (جهد وليس ضمانًا) */
-  _backupCurrent() {
-    try {
-      const files = STATE.files().map(f => ({ [f.name]: f.content }));
-      localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({ savedAt: Date.now(), files: Object.assign({}, ...files) }));
-      return true;
-    } catch (e) {
-      console.warn('[kingCode] import backup skipped:', (e && e.message) || e);
-      return false;
-    }
+  async _backupCurrent() {
+    const files = STATE.files().map(f => ({ [f.name]: f.content }));
+    return STORE.putBackup({ savedAt: Date.now(), files: Object.assign({}, ...files) });
   },
 
   /** يطبّق ملفات مشروع جديد (نتيجة U.sanitizeFiles) بعد التنقية والتأكيد — مستخرج من importProject الأصلية */
@@ -177,10 +228,8 @@ const FILES = {
   },
 
   /** استعادة آخر نسخة احتياطية (لوحة الأوامر: «ملفات ← استعادة نسخة ما قبل الاستيراد») */
-  restoreBackup() {
-    let raw = null;
-    try { raw = JSON.parse(localStorage.getItem(IMPORT_BACKUP_KEY) || 'null'); }
-    catch (e) { raw = null; }
+  async restoreBackup() {
+    const raw = await STORE.getBackup();
     if (!raw || !raw.files) { UI.toast('لا توجد نسخة احتياطية للمشروع السابق 🔒', 'warn'); return; }
     const clean = U.sanitizeFiles(raw.files);
     if (!clean) { UI.toast('النسخة الاحتياطية تالفة ولا يمكن استعادتها', 'error'); return; }
@@ -213,7 +262,7 @@ const FILES = {
         const noteTxt = U.describeNotes(clean.notes);
         /* بند 1.6: نسخة احتياطية قبل الاستبدال + تأكيد صريح — لا استبدال صامت */
         const current = STATE.files().length;
-        const backupOk = this._backupCurrent();
+        const backupOk = await this._backupCurrent();
         UI.confirm({
           title: 'استيراد مشروع؟',
           message: 'سيستبدل المشروع الحالي (' + current + ' ملف) بمحتوى الملف المختار (' + files.length + ' ملف).'
