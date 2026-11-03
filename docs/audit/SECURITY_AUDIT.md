@@ -1,343 +1,63 @@
-# SECURITY AUDIT — KINGCODE IDE
+# Security Audit — KINGCODE IDE (Phase 0)
 
-## Overview
-This audit identifies security vulnerabilities, unsafe patterns, and attack surfaces in KINGCODE IDE v1.0.3. Severity ratings follow industry convention: Critical (exploitable remote code execution or data exfiltration), High (significant vulnerability requiring exploit chain), Medium (moderate impact, difficult to exploit), Low (information disclosure or minor issue).
+Audited commit `45f7284`, 2026-11-03. Threat model: a user opens untrusted project files (import/paste) in a client-only PWA; the dev server is localhost-only. There is no backend, no auth, no secrets, no network calls from app code.
 
-## Critical Security Issues
+## Summary
 
-### SC-01: Server-Side Request Forgery (SSRF) Potential
-**Severity:** Critical  
-**File:** `tools/server.js:46-50`  
-**Description:** The static file server uses `path.normalize(urlPath)` then checks `filePath.startsWith(ROOT)` to prevent directory traversal. However:
-- `decodeURIComponent(req.url)` is called without try/catch — a malformed URL crashes the entire server
-- `path.normalize()` may not catch all escape sequences when combined with percent-encoding
-- Path like `/../etc/passwd` or `%2e%2e%2f` could potentially bypass the startsWith check
-- No MIME-type validation on served files beyond the MIME map
+| ID | Title | Severity | Status |
+|---|---|---|---|
+| S-01 | Preview isolation (sandbox without `allow-same-origin`) | — | **Verified holding** |
+| S-02 | Console bridge messages | Low | Mitigated; hardening open |
+| S-03 | CSP: `'unsafe-inline'` scripts; inherited by preview | Medium | Open (design decision) |
+| S-04 | SW deletes other apps' caches | Medium | Open (= F-06) |
+| S-05 | Import validation gaps | Medium | Open (= F-04) |
+| S-06 | Missing headers possible only via host (no meta equivalents) | Low | Open / document |
+| S-07 | Data at rest: project in plaintext `localStorage` | Info | Accepted, document |
+| S-08 | Dev server | — | **Previously reported issues resolved** |
+| S-09 | Dependencies | Info | CM5 vendored; advisories unverified |
+| S-10 | XSS via file names / content in app chrome | — | **Verified holding** |
 
-**Evidence:** Code analysis shows:
-```javascript
-const filePath = path.join(ROOT, path.normalize(urlPath));
-if (!filePath.startsWith(ROOT)) {
-  send(res, 403, 'Forbidden', 'text/plain');
-  return;
-}
-```
-The `startsWith` check is insufficient if `normalize()` does not fully resolve `..` sequences — and it lacks a trailing path-separator guard.
+No Critical or High security defect was confirmed.
 
-**Runtime Verification (2026-11-02, live `node tools/server.js`, port 8123, `curl --path-as-is` raw request line):**
+## Verified-holding controls (evidence)
 
-| Request | Live result |
-|---------|-------------|
-| `GET /..%2f..%2fREADME.md` | **200** — served the repo README (in-root). The leading `..` segments were **silently dropped by `path.normalize()`** (Node strips leading `..` after a root anchor), remapping the path to `/README.md` inside ROOT |
-| `GET /..%2f..%2fdefinitely-missing-xyz-987.md` | **404** (not 403) — proves the path was remapped, not rejected: the boundary check never fired |
-| `GET /$`-class malformed URLs (`/%`) | **Fatal server crash** — see SC-01a |
+**S-01 Preview isolation.** Iframe has `sandbox="allow-scripts allow-modals"` (no `allow-same-origin`, no `allow-top-navigation`, no popups/forms). Hostile preview script (probe2): `window.parent.document` → blocked, `localStorage` → blocked, `window.top.location = …` → blocked, `fetch('https://example.com')` → blocked by inherited CSP.
 
-**Conclusion:** no file outside ROOT was served in testing — traversal attempts currently *collapse back inside* the root. But that protection is accidental (dependent on `normalize()` rewriting the path, not on the check failing). The guard remains flawed: a sibling directory whose name extends `ROOT` (e.g. `ROOT` vs `ROOT-backup`) would pass the prefix test and be readable.
+**S-10 App-chrome XSS.** File named `<img src=x onerror=window.__xss=1>.html` is sanitized (`<>` → `-`) and rendered via `textContent`; `window.__xss` stayed undefined (probe1). Palette uses `escapeHtml` + `innerHTML` on fixed templates; tabs/list/console/toasts use `textContent`. `innerHTML` is used for the mobile quickbar/burger with constant strings only.
 
-**Recommended Fix:**
-1. Wrap `decodeURIComponent` in try/catch
-2. Use `path.resolve()` and verify the resolved path is under ROOT
-3. Add explicit file extension whitelist
-4. Reject paths containing `..` segments outright
+**S-08 Dev server.** `/%`→400, traversal→403 with no existence oracle, no ACAO header, correct MIME (all in `npm test`, 16/16). Binds `127.0.0.1` by default. Remaining nit: serves the entire repo root (including `docs/`, `.git/` if present) — acceptable for localhost dev, document it.
 
-```javascript
-try {
-  urlPath = decodeURIComponent(urlPath);
-} catch (e) {
-  send(res, 400, 'Bad Request', 'text/plain');
-  return;
-}
-const resolved = path.resolve(ROOT, urlPath);
-if (!resolved.startsWith(ROOT + path.sep) && resolved !== ROOT) {
-  send(res, 403, 'Forbidden', 'text/plain');
-  return;
-}
-```
+## Findings
 
-### SC-01a: Dev-Server DoS — One Malformed Request Kills the Whole Server
-**Severity:** Critical (confirmed live twice)
-**File:** `tools/server.js:42`
-**Description:** `decodeURIComponent(new URL(req.url, 'http://x').pathname)` throws `URIError` on malformed percent-encoding (e.g. a bare `%`). The exception is uncaught inside the request handler; Node's default behavior terminates the entire process.
+### S-02 — Console bridge (Low)
+- **Description:** bridge posts with `targetOrigin '*'`; parent accepts messages where `d.__kingcode === true` and `e.source === frame.contentWindow`.
+- **Evidence:** forged `window.postMessage({__kingcode:true,…})` from the parent page was ignored (probe1 `forged:false`). Sandboxed frame has an opaque origin and the only listener reachable is its parent, so `'*'` leaks nothing sensitive.
+- **Residual:** content of messages is untrusted (preview code controls `level`/`parts`): rendered via `textContent`, `level` is used in a CSS class name (`lvl-` + level) — constrain to an allow-list; `parts` length/size is unbounded per message (console flood: only row count is capped).
+- **Fix:** allow-list `level`; cap parts count/length; keep `'*'` with a comment explaining why it is safe.
+- **Verify:** unit test with malformed/oversized messages.
 
-**Runtime evidence (×2 fresh server instances, 2026-11-02):**
-```
-C:\...\tools\server.js:42
-  let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-                ^
+### S-03 — CSP weaknesses and preview side-effects (Medium)
+- **Evidence:** `script-src 'self' 'unsafe-inline'` is required only by 8 inline `onclick="…"` attributes in `index.html`; `frame-src 'none'` is declared yet the `srcdoc` preview works (srcdoc frames are not governed by it as tested in Chromium — behavior should not be relied on across browsers; unverified in Firefox/Safari). Because `srcdoc` inherits the parent's CSP, **user projects cannot load any remote image, font, script or API** (F-09), and inline scripts in user projects only work because of `'unsafe-inline'`.
+- **Impact:** weaker XSS defense-in-depth for the app shell; product limitation for previews.
+- **Fix:** (1) remove inline handlers → drop `'unsafe-inline'` from `script-src` for the shell; (2) give the preview its own policy: serve preview from a `blob:`/`srcdoc` document that carries its own `<meta>` CSP (e.g. `img-src * data: blob:`, `connect-src https:`) — note inheritance means parent CSP must permit `blob:`/`frame-src`; alternative is a dedicated sandbox origin page (`/sandbox.html`). Needs a decision on whether network access from previews is wanted.
+- **Verify:** Playwright test: shell has no inline script execution; preview loads a data:/https image per chosen policy.
 
-URIError: URI malformed
-    at decodeURIComponent (<anonymous>)
-    at Server.<anonymous> (...\tools\server.js:42:17)
-    at Server.emit (node:events:509:28)
-    at parserOnIncoming (node:_http_server:1282:12)
-    ...
-Node.js v24.19.0
-Exited with code 1
-```
-`curl http://127.0.0.1:8123/%` → HTTP code `000` (connection died mid-response); all subsequent requests → connection refused.
+### S-04 — Cache deletion scope (Medium) — see F-06.
 
-**Fix:** wrap lines 42-50 in try/catch → respond `400 Bad Request`; never let a handler exception escape the handler.
+### S-05 — Import validation (Medium) — see F-04. Extra security-relevant notes: names are sanitized for path characters (`\ / : * ? " < > | # % &`), leading dots stripped, length 64; `__proto__`/`constructor` keys are harmless (`Object.entries` over `JSON.parse` output, objects created with literals) but there is no prototype-pollution test.
 
-### SC-02: Unsafe HTML Rendering in Preview
-**Severity:** High  
-**File:** `js/preview.js:112-152` (`inject()` method)  
-**Description:** The `inject()` method processes user-project HTML and replaces external `<link>` and `<script>` tags with embedded content. However:
-- The method uses `.replace()` with regex on raw HTML strings
-- `mapFor()` function checks if a URL matches by filename only — could be bypassed
-- Injected console bridge (`injectConsoleBridge`) overrides `console` methods with `postMessage` to parent — no `targetOrigin` restriction
-- `window.onerror` forwarder also uses `postMessage` with `'*'` target
-- If a user imports a project with externally-hosted scripts, those scripts execute in the sandboxed iframe
+### S-06 — Headers only a host can set (Low)
+`frame-ancestors`, `X-Frame-Options`, `Referrer-Policy` (meta works for referrer), `Permissions-Policy`, HSTS cannot be set via `<meta>` CSP. App has no clickjacking protection when hosted statically. **Fix:** add `<meta name="referrer" content="no-referrer">`; document recommended host headers (`_headers` for Netlify/Cloudflare, `vercel.json`) in `docs/`.
 
-**Evidence:** 
-```javascript
-injectConsoleBridge(content) {
-  const bridge = `<script>
-  ['log','info','warn','error','debug'].forEach(function(level) {
-    var old = console[level];
-    console[level] = function() {
-      try { window.parent.postMessage({ __kingcode: true, type: 'console', level: level, parts: fmt(arguments) }, '*'); } catch (e) {}
-      try { old.apply(console, arguments); } catch (e) {}
-    };
-  });
-  // ... window.onerror + unhandledrejection forwarders ...
-  </script>`;
-  return bridge + content;
-}
-```
+### S-07 — Local storage (Info)
+Project content and backup are plaintext in `localStorage` (same-origin scripts, browser extensions, and shared-origin hosting like `user.github.io` can read them). Sharing an origin with other apps on GitHub Pages is the realistic exposure. Document; consider dedicated origin/custom domain.
 
-The `'*'` targetOrigin in `postMessage` means any receiver can listen — no origin validation.
+### S-09 — Dependencies (Info)
+Zero npm dependencies (verified `package.json`). CodeMirror 5 is vendored; version claimed 5.65.16, **not independently verified** and CM5 is in maintenance mode. No SRI needed (same-origin). No GitHub Actions secrets are used; `actions/checkout@v4`/`setup-node@v4` pinned by tag, not by SHA (Low supply-chain note).
 
-**Recommended Fix:**
-1. Add `targetOrigin` based on `location.origin` 
-2. Validate imported files against allowed domains
-3. Sanitize HTML content before injection (remove `on*` attributes, `javascript:` URLs)
-4. Use `sandbox` attribute more restrictively on preview iframe
-5. Consider CSP headers for the preview environment
+### Secrets scan
+`grep` for `key|token|secret|password|api` across tracked files (excluding vendor): no credentials. GitHub secret scanning to be re-run in Phase 10.
 
-### SC-03: localStorage Exposure
-**Severity:** Medium  
-**File:** `js/utils.js:40-58`, `js/state.js:88-106`  
-**Description:** All project data is stored in plaintext `localStorage`:
-- No encryption of sensitive project data
-- Shared across all same-origin tabs/windows — concurrent edits cause conflicts
-- No quota exceeded handling beyond `KC.limits.maxFiles`
-- `U.storage.usage()` calculates size but no action on quota exceeded
-- Version key `kingcode:state:v1` — future incompatibility risk
-
-**Evidence:** 
-```javascript
-storage: {
-  get(key, fallback = null) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw === null ? fallback : JSON.parse(raw);
-    } catch (e) {
-      console.warn('[kingCode] storage read failed:', e);
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch (e) {
-      console.warn('[kingCode] storage write failed:', e);
-      return false;
-    }
-  }
-}
-```
-
-**Recommended Fix:**
-1. Add quota warning and graceful degradation when approaching limit
-2. Consider `idb-keyval` or `localforage` for IndexedDB backend with localStorage fallback
-3. Add `storage` event listeners for inter-tab conflict detection
-4. Enforce `KC.limits.maxFiles` and `KC.limits.consoleMax` consistently
-
-### SC-04: No Content Security Policy
-**Severity:** Medium  
-**File:** `index.html` (entire document)  
-**Description:** No `<meta http-equiv="Content-Security-Policy">` element in the document. The preview iframe has:
-```html
-<iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"
-        allowtransparency="true" title="معاينة المشروع"></iframe>
-```
-The sandbox is permissive: allows scripts, forms, mods, and popups. Missing `allow-same-origin` restricts iframe to same-origin, but also missing `script-src` directive means iframe scripts can load from anywhere.
-
-**Evidence:** Missing CSP meta tag; sandbox attribute list is incomplete for strict isolation.
-
-**Recommended Fix:**
-1. Add CSP meta tag: `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; frame-src 'none';`
-2. Refine preview iframe sandbox: `sandbox="allow-scripts allow-forms"` (remove allow-modals, allow-popups)
-3. Add `referrer-policy` meta tag
-
-### SC-05: No Input Validation on File Imports
-**Severity:** Medium  
-**File:** `js/files.js:172-199`, `js/utils.js:114-125`  
-**Description:** `importProject()` parses raw JSON from user file without schema validation:
-- `JSON.parse(await U.readText(file))` with no structure validation
-- `U.sanitizeFiles()` only checks if result is an array and has basic properties
-- No validation of file content types, sizes, or malicious code embedded in content
-- `STATE.data.files = files` directly overwrites without merge/safety check
-
-**Evidence:** 
-```javascript
-importProject() {
-  const input = U.$('#import-json-input');
-  input.onchange = async () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    try {
-      const parsed = JSON.parse(await U.readText(file));  // Uncaught SyntaxError can crash
-      const files = U.sanitizeFiles(parsed);              // Minimal validation
-      if (!files) throw new Error('بنية غير known');
-      STATE.data.files = files;                           // Direct overwrite
-      // ...
-    } catch (e) {
-      UI.toast('فشل استيراد JSON: ' + e.message, 'error');
-    }
-  };
-}
-```
-
-**Recommended Fix:**
-1. Validate parsed JSON structure before processing
-2. Limit file size for imports
-3. Sanitize file content (escape HTML in non-code contexts)
-4. Add maximum import size check
-5. Validate each file name against reserved patterns
-
-### SC-06: Console Bridge No Origin Validation
-**Severity:** Medium  
-**File:** `js/preview.js:155-191` (`injectConsoleBridge`)  
-**Description:** The console bridge posts messages to `window.parent` with `'*'` targetOrigin:
-```javascript
-window.parent.postMessage({ __kingcode: true, type: 'console', level: level, parts: fmt(arguments) }, '*');
-```
-This means any window can receive and potentially act on these messages. If the iframe is embedded in an external site (unlikely given PWA nature, but possible via iframe embedding), the external site could listen for kingCode console messages.
-
-**Evidence:** Same function as SC-02 evidence; `'*'` is the third parameter to `postMessage`.
-
-**Recommended Fix:**
-1. Use `window.parent.location.origin` as targetOrigin
-2. Add message source validation in receiver
-3. Consider `MessageChannel` for direct iframe-parent communication
-
-### SC-07: Service Worker Cache Poisoning
-**Severity:** Low  
-**File:** `js/service-worker.js:98-106`  
-**Description:** `backgroundUpdate()` blindly caches any fetched 200 response:
-```javascript
-function backgroundUpdate(request, cache) {
-  return fetch(request)
-    .then(res => {
-      if (res && res.status === 200) {
-        return cache.put(request, res.clone());
-      }
-    })
-    .catch(() => { /* offline: ignore silently */ });
-}
-```
-No response validation beyond status 200. Could cache malicious content if server is compromised.
-
-**Evidence:** Function code shows no content validation.
-
-**Recommended Fix:**
-1. Add response MIME type validation
-2. Cache only known asset types (text/html, text/css, application/javascript, image/*, font/*)
-3. Add cache control headers or Etag validation
-
-### SC-08: Wildcard CORS on Every Response (Runtime-Confirmed)
-**Severity:** Medium (dev-only surface, but directly exploitable)
-**File:** `tools/server.js:36`
-**Description:** every response — including all source files — carries `Access-Control-Allow-Origin: '*'` (set in `send()`). While the dev server runs, ANY website open in the user's browser can fetch `http://127.0.0.1:8123/...` cross-origin and read the full project source (there is no authentication and no host validation).
-
-```javascript
-res.writeHead(code, {
-  'Content-Type': type,
-  'Cache-Control': 'no-store',
-  'Access-Control-Allow-Origin': '*'   // ← any origin can read this server
-});
-```
-
-**Fix:** drop the header entirely for the default same-origin web flow (the PWA does not need it cross-origin), or restrict to `http://localhost:8123`; optionally require `Host: localhost`.
-
-### SC-09: MIME Map Serves Every `.json` as `application/manifest+json` (Runtime-Confirmed)
-**Severity:** Low
-**File:** `tools/server.js:22`
-**Description:** the MIME map maps `.json` to `application/manifest+json`, so ALL JSON files are served as web-app manifests with that `Content-Type` (live-confirmed header on `/manifest.json`). Correct for the PWA manifest itself, incorrect for every other JSON file; types such as `application/manifest+json` can confuse clients that type-check responses.
-
-```javascript
-'.json': 'application/manifest+json', /* PWA manifest */
-```
-
-**Fix:** map `.json` → `application/json`; add a dedicated `.webmanifest` entry (already present, line 28) for the manifest.
-
----
-
-## High-Severity Security Recommendations Summary
-
-| Priority | Issue | File | Fix Category |
-|----------|-------|------|--------------|
-| P0 (Critical) | Dev-server DoS via malformed URL + accidental path-boundary (SC-01 / SC-01a) — **runtime-confirmed ×2** | `tools/server.js:42,46` | try/catch → 400; `resolve()` + trailing-sep boundary check |
-| P1 (High) | Unsafe HTML in preview | `js/preview.js` | HTML sanitization, CSP, sandbox |
-| P1 (High) | localStorage plaintext | `js/utils.js`, `js/state.js` | Quota handling, inter-tab coordination |
-| P2 (Medium) | No CSP meta tag | `index.html` | Add Content-Security-Policy |
-| P2 (Medium) | Import validation | `js/files.js` | JSON schema validation, size limits |
-| P2 (Medium) | postMessage `*` targetOrigin | `js/preview.js` | Origin-restricted messaging |
-| P2 (Medium) | Wildcard CORS leaks repo source to any open website while server runs (SC-08) | `tools/server.js:36` | Remove/restrict ACAO header |
-| P3 (Low) | SW cache poisoning | `js/service-worker.js` | Response type validation |
-| P3 (Low) | `.json` MIME mis-map (SC-09) | `tools/server.js:22` | Map `.json` → `application/json` |
-| P3 (Low) | Duplicate CSS classes | `css/main.css`, `css/components.css` | Style consolidation |
-
----
-
-## Low-Severity Security Findings
-
-- **Missing `referrer-policy` meta tag** — information leakage potential
-- **`editText` function referenced but not implemented** — CLOSED 2026-11-02 (false positive): no reference to `editText` exists in any code file at HEAD; mentioned only by the audit documents themselves
-- **`pref:sidebarOpen` recursion** — while primarily a bug (CB-01), also prevents pref preference persistence
-- **No rate limiting on storage operations** — could enable quota exhaustion DoS
-- **Console messages visible in devtools** — no production filtering
-- **`window.KINGCODE_READY` global exposure** — may expose internal state; consider encapsulating
-
----
-
-## Security Testing Requirements
-
-After fixes are implemented, verify:
-
-1. **Server URL handling**: Test with malformed URLs, `../` sequences, percent-encoded paths
-2. **Preview HTML sanitization**: Inject `<script>alert('xss')</script>` in editor → verify does not execute in preview
-3. **Import validation**: Test with malformed JSON, oversized files, unexpected structure
-4. **postMessage origin**: Verify messages only reach intended origin
-5. **CSP enforcement**: Test pages render correctly with CSP headers
-6. **Storage quota**: Simulate quota exceeded, verify graceful handling
-7. **Service Worker cache**: Verify only expected assets are cached
-
----
-
-## Immediate Action Items
-
-1. **Fix `tools/server.js` (SC-01a / SC-01)** — try/catch around `decodeURIComponent` (respond 400), `path.resolve()` + trailing-separator boundary check; prevents the confirmed DoS and accidental-only traversal handling
-2. **Remove/restrict `Access-Control-Allow-Origin: '*'` (SC-08)** — the PWA does not need cross-origin allowance
-3. **Fix `.json` MIME map (SC-09)** — `application/json` for generic JSON
-4. **Fix toolbar double-binding (CB-01)** — remove either the inline `onclick` attributes or the duplicate `addEventListener` calls
-5. **Fix `js/state.js` `pref:sidebarOpen` recursion** — historically proven; re-confirm stays fixed after UI wiring changes
-6. **Add CSP meta tag to `index.html`** — security best practice
-7. **Refine preview iframe sandbox** — remove `allow-modals`, `allow-popups` if not needed
-8. **Add import JSON schema validation** — prevents crashes from malformed imports
-9. **Restrict `postMessage` targetOrigin** — use `location.origin` instead of `'*'`
-
----
-
-## حالة التنفيذ — المرحلة 1 (v1.0.4) — 2026-11-02
-
-| البند | الحالة | الكوميت | دليل حي |
-|------|--------|---------|---------|
-| SC-01a انهيار الترميز (DoS) | **مُصلَح** | `558845d` | `GET /foo%bar` → **400 Bad Request**؛ الطلب مباشرة بعده → **200** (كان الانهيار مؤكداً حياً ×2) |
-| SC-01 عبور الحدود | **مُصلَح** | `558845d` | `/..%2f..%2fREADME.md` → **403** (كان 200) ونسخة الملف المفقود → **403** (لم يبق أوراكل تسريب الوجود عبر 404)؛ إضافات تحصينية: رفض البايت الفارغ `\0` (400) ومقارنة الجذر مع فاصله النهائي لحصر الأشقاء مثل `kingcode-x` |
-| SC-08 CORS عالمي | **مُصلَح** | `5cea36c` | `curl -I` على `/index.html`: ترويسة `Access-Control-Allow-Origin` **غير موجودة** (كانت `*` على كل الاستجابات) |
-| SC-09 MIME الـ `.json` | **مُصلَح** | `5cea36c` | كل `.json` ← `application/json`، و`manifest.json` وحده يحفظ `application/manifest+json` (تحقق حي بالترويسة) |
-
-تبقى من البنود الحرجة: SC-03 (تخزين نصي) وSC-05 وSC-06 وSC-07 → ضمن **المرحلة 2**؛ أما SC-02/SC-04 فقد عولجا جزئياً في `1111bab` (CSP meta + تضييق sandbox) واستكمال تضييقهما مذكرون في المرحلة 2.
+## Open limitations to document (not defects)
+- No terminal/Git/AI means no credential storage exists yet. **Before adding AI/GitHub**: tokens must not live in `localStorage` in plaintext; design in `docs/architecture/MULTI_PLATFORM_STRATEGY.md`.
+- Offline-first means a malicious update via compromised host would be cached by SW; consider SW update UX + integrity docs.
