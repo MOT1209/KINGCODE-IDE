@@ -4,7 +4,7 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.0.9';
+const VERSION = 'kingcode-v1.1.0';
 const CACHE_PREFIX = 'kingcode-cache-';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
 
@@ -31,6 +31,7 @@ const ASSETS = [
   /* وحدات kingCode */
   'js/config.js',
   'js/utils.js',
+  'js/storage.js',
   'js/state.js',
   'js/editor.js',
   'js/files.js',

@@ -3,6 +3,27 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.1.0] — 2026-11-03
+
+Phase 3, step 3 of `docs/audit/ARCHITECTURE_AUDIT.md` §4: asynchronous storage layer (A-01).
+
+### Changed
+
+- **Storage moved from one `localStorage` blob to IndexedDB** (`js/storage.js`, global `STORE`): one record per file + a `meta` record, **differential writes** (only the files that changed are written — editing one file writes one record), capacity in the hundreds of MB/GB instead of ~5 MB. `localStorage` remains as an automatic fallback when IndexedDB is unavailable (some private modes), with the same API.
+- **Automatic migration:** on first run with IndexedDB the legacy `kingcode:state:v1` blob is read, shown and written into IndexedDB (the legacy key is left untouched as a backup).
+- **Writes are asynchronous and serialized** (`STATE.persist(ids)` collects changed ids; `STATE.flush()` now returns a Promise; a failed write stays pending and is retried by the next write). The failure indicator, repeated warning and recovery from 1.0.7 are unchanged.
+- **Leaving the page:** IndexedDB transactions cannot be awaited at `pagehide`, so `STATE.flushSync()` writes a small synchronous **crash journal** to `localStorage` (only the changed files) and `STORE.load()` applies it on the next boot if it is newer than the last save. (Verified: the fast-reload E2E test F-03 passes on IndexedDB.)
+- Import backup (`importBackup`) is stored in IndexedDB too, so large projects can be backed up before import; the sidebar size now reports the project's content size instead of `localStorage` usage.
+- `boot()` is asynchronous (`await STORE.init(); await STORE.load()`); `U.storage` and `KC.storageKey` were removed (dead code).
+
+### Tests
+
+- Unit: 21 core tests (+6 for `STORE`: load/legacy/corrupt/journal/backup, serialized writes, retry after failure). E2E: **26** (+6: IndexedDB backend & per-file records, 16 MB project beyond the old ceiling, differential save writes exactly one record, legacy migration, crash-journal recovery, localStorage fallback); F-02/F-05 tests now inject real IndexedDB failures and read persisted data from IndexedDB.
+
+### Meta
+
+- Version 1.1.0 (`KC.version`, SW cache `kingcode-v1.1.0`, `package.json`); `js/storage.js` added to the precache list.
+
 ## [1.0.9] — 2026-11-03
 
 Phase 3 (architecture), steps 1–2 of `docs/audit/ARCHITECTURE_AUDIT.md` §4: one write path for project files and a pure, testable preview builder. Findings: A-02, A-05, T-01.

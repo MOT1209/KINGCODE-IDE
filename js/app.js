@@ -7,10 +7,13 @@
 const APP = {
   swReg: null,
 
-  boot() {
-    /* 1) الحالة */
-    const had = STATE.hydrate();
+  async boot() {
+    /* 1) الحالة (تخزين غير متزامن: IndexedDB أو localStorage احتياطًا) */
+    await STORE.init();
+    const snap = await STORE.load();
+    const had = STATE.hydrate(snap);
     if (!had) STATE.bootstrapDefaults();
+    else if (snap && (snap._fromJournal || snap._migrated)) STATE.persist(STATE.ALL); /* يثبّت الترحيل من localStorage/سجل الطوارئ */
 
     /* 2) الوحدات */
     FILE_LIST.init();
@@ -99,10 +102,11 @@ const APP = {
   },
 
   /** يطبّق التحديث الجاهز: يحفظ أولًا ثم يفعّل الـ SW الجديد ويعيد التحميل */
-  applyUpdate() {
+  async applyUpdate() {
     const reg = this.swReg;
     if (!reg || !reg.waiting) { UI.toast('لا يوجد تحديث جاهز حاليًا', 'info'); return; }
-    if (!STATE.flush()) { UI.toast('تعذّر الحفظ قبل التحديث — صدِّر المشروع أولًا', 'error'); return; }
+    const ok = await STATE.flush();
+    if (!ok) { UI.toast('تعذّر الحفظ قبل التحديث — صدِّر المشروع أولًا', 'error'); return; }
     if (STATE.data.dirty.size) { UI.toast('احفظ الملفات غير المحفوظة قبل التحديث (Ctrl+S)', 'warn'); return; }
     this._updating = true;
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -124,9 +128,9 @@ const APP = {
 };
 
 /* إقلاع */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   try {
-    APP.boot();
+    await APP.boot();
     APP.processUrlAction();
     window.KINGCODE_READY = true; /* علامة جاهزية للاختبار */
   } catch (e) {

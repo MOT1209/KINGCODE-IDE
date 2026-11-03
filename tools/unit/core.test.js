@@ -119,50 +119,126 @@ test('uniqueName appends -2, -3 before the extension', () => {
   assert.equal(run("STATE.uniqueName('noext')"), 'noext-2');
 });
 
-/* ---------- persistence ---------- */
+/* ---------- persistence (خلفية localStorage: لا indexedDB داخل vm) ---------- */
 
-test('flush writes pending state immediately and persisted payload is valid', () => {
+test('flush writes pending state and persisted payload is valid', async () => {
   const { run, store } = makeEnv();
+  await run('STORE.init()');
   run("STATE.addFile('a.js', 'hello')");
   assert.equal(store.has('kingcode:state:v1'), false, 'debounced write should not have happened yet');
-  assert.equal(run('STATE.flush()'), true);
+  assert.equal(await run('STATE.flush()'), true);
   const saved = JSON.parse(store.get('kingcode:state:v1'));
   assert.equal(saved.files[0].content, 'hello');
+  assert.ok(saved.savedAt > 0);
 });
 
-test('write failure sets saveFailed, emits persisted {ok:false}, and recovers', () => {
-  const env = makeEnv({ failWrites: true });
-  const { run } = env;
+test('write failure sets saveFailed, emits persisted {ok:false}, keeps the change pending for retry', async () => {
+  const { run } = makeEnv({ failWrites: true });
+  await run('STORE.init()');
   run("globalThis.__ev = []; STATE.on('persisted', r => __ev.push(r.ok)); STATE.addFile('a.js', 'x')");
-  assert.equal(run('STATE.flush()'), false);
+  assert.equal(await run('STATE.flush()'), false);
   assert.equal(run('STATE.saveFailed'), true);
+  assert.equal(run('STATE._pending'), true, 'failed write must stay pending');
   assert.deepEqual(JSON.parse(run('JSON.stringify(__ev)')), [false]);
 });
 
-test('auto-save off: persist writes the committed snapshot, not the unsaved edit', () => {
+test('write failure then recovery: next flush succeeds and clears saveFailed', async () => {
+  const env = makeEnv();
+  const { run } = env;
+  await run('STORE.init()');
+  run("STATE.addFile('a.js', 'x')");
+  /* أفشل الكتابة مؤقتًا عبر استبدال الدالة ثم أعدها */
+  run("globalThis.__orig = STORE._saveLocal; STORE._saveLocal = () => false;");
+  assert.equal(await run('STATE.flush()'), false);
+  run('STORE._saveLocal = __orig');
+  assert.equal(await run('STATE.flush()'), true);
+  assert.equal(run('STATE.saveFailed'), false);
+});
+
+test('writes are serialized (no two saves in flight)', async () => {
+  const { run } = makeEnv();
+  await run('STORE.init()');
+  run(`globalThis.__inflight = 0; globalThis.__max = 0; const o = STORE.save.bind(STORE);
+       STORE.save = async (...a) => { __inflight++; __max = Math.max(__max, __inflight); await new Promise(r => setTimeout(r, 15)); const v = await o(...a); __inflight--; return v; };`);
+  run("STATE.addFile('a.js', '1')");
+  const p1 = run('STATE.flush()');
+  run("STATE.addFile('b.js', '2')");
+  const p2 = run('STATE.flush()');
+  await Promise.all([p1, p2]);
+  assert.equal(run('__max'), 1);
+});
+
+test('auto-save off: persist writes the committed snapshot, not the unsaved edit', async () => {
   const { run, store } = makeEnv();
+  await run('STORE.init()');
   run("STATE.addFile('a.js', 'v1')");
-  run('STATE.flush()');
+  await run('STATE.flush()');
   const id = run('STATE.files()[0].id');
-  run(`STATE.beginUnsaved('${id}'); STATE.files()[0].content = 'v2-unsaved'; STATE.markDirty('${id}', true); STATE.persist(); STATE.flush()`);
+  run(`STATE.beginUnsaved('${id}'); STATE.files()[0].content = 'v2-unsaved'; STATE.markDirty('${id}', true); STATE.persist('${id}');`);
+  await run('STATE.flush()');
   assert.equal(JSON.parse(store.get('kingcode:state:v1')).files[0].content, 'v1');
-  run(`STATE.markDirty('${id}', false); STATE.persist(); STATE.flush()`);
+  run(`STATE.markDirty('${id}', false); STATE.persist('${id}');`);
+  await run('STATE.flush()');
   assert.equal(JSON.parse(store.get('kingcode:state:v1')).files[0].content, 'v2-unsaved');
 });
 
-test('hydrate keeps >60 files (no silent truncation) and normalizes duplicate names', () => {
-  const { run, store } = makeEnv();
+test('hydrate keeps >60 files (no silent truncation) and normalizes duplicate names', async () => {
+  const { run } = makeEnv();
   const files = Array.from({ length: 75 }, (_, i) => ({ id: 'id' + i, name: i < 3 ? 'same.js' : 'f' + i + '.js', content: 'c', updatedAt: 1 }));
-  store.set('kingcode:state:v1', JSON.stringify({ v: 1, files, tabs: ['id0'], activeId: 'id0', settings: {}, uiPrefs: {} }));
-  assert.equal(run('STATE.hydrate()'), true);
+  run(`globalThis.__snap = ${JSON.stringify({ v: 1, files, tabs: ['id0'], activeId: 'id0', settings: {}, uiPrefs: {} })}`);
+  assert.equal(run('STATE.hydrate(__snap)'), true);
   assert.equal(run('STATE.files().length'), 75);
   assert.equal(run('new Set(STATE.files().map(f => f.name)).size'), 75);
 });
 
-test('hydrate ignores corrupt storage', () => {
+test('hydrate ignores corrupt snapshots', () => {
+  const { run } = makeEnv();
+  assert.equal(run('STATE.hydrate(null)'), false);
+  assert.equal(run("STATE.hydrate({ files: 'nope' })"), false);
+  assert.equal(run('STATE.hydrate({ files: [] })'), false);
+});
+
+/* ---------- STORE: تحميل/ترحيل/سجل الطوارئ ---------- */
+
+test('STORE.load reads the legacy localStorage blob; corrupt blob -> null', async () => {
   const { run, store } = makeEnv();
-  store.set('kingcode:state:v1', '{not json');
-  assert.equal(run('STATE.hydrate()'), false);
-  store.set('kingcode:state:v1', JSON.stringify({ files: 'nope' }));
-  assert.equal(run('STATE.hydrate()'), false);
+  await run('STORE.init()');
+  assert.equal(await run('STORE.load()'), null);
+  store.set('kingcode:state:v1', '{bad json');
+  assert.equal(await run('STORE.load()'), null);
+  store.set('kingcode:state:v1', JSON.stringify({ files: [{ id: 'a', name: 'a.js', content: 'x', updatedAt: 1 }], tabs: [], savedAt: 5 }));
+  const snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.equal(snap.files[0].name, 'a.js');
+});
+
+test('journal newer than the last save is applied on load and edits survive; older journal is dropped', async () => {
+  const { run, store } = makeEnv();
+  await run('STORE.init()');
+  store.set('kingcode:state:v1', JSON.stringify({ files: [{ id: 'a', name: 'a.js', content: 'old', updatedAt: 1 }], tabs: ['a'], activeId: 'a', savedAt: 100 }));
+  store.set('kingcode:journal:v1', JSON.stringify({ t: 200, files: [{ id: 'a', name: 'a.js', content: 'NEW', updatedAt: 2 }], tabs: ['a'], activeId: 'a' }));
+  let snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.equal(snap.files[0].content, 'NEW');
+  assert.equal(snap._fromJournal, true);
+  store.set('kingcode:journal:v1', JSON.stringify({ t: 50, files: [{ id: 'a', name: 'a.js', content: 'STALE', updatedAt: 2 }] }));
+  snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.equal(snap.files[0].content, 'old');
+  assert.equal(store.has('kingcode:journal:v1'), false, 'stale journal should be removed');
+});
+
+test('journal entries with invalid shape are ignored', async () => {
+  const { run, store } = makeEnv();
+  await run('STORE.init()');
+  store.set('kingcode:state:v1', JSON.stringify({ files: [{ id: 'a', name: 'a.js', content: 'old', updatedAt: 1 }], savedAt: 1 }));
+  store.set('kingcode:journal:v1', JSON.stringify({ t: 9, files: [null, { id: 5 }, { name: 'x' }] }));
+  const snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.equal(snap.files.length, 1);
+  assert.equal(snap.files[0].content, 'old');
+});
+
+test('backup round-trips through STORE (local backend)', async () => {
+  const { run } = makeEnv();
+  await run('STORE.init()');
+  assert.equal(await run("STORE.putBackup({ savedAt: 1, files: { 'a.js': 'x' } })"), true);
+  const b = JSON.parse(await run('STORE.getBackup().then(b => JSON.stringify(b))'));
+  assert.equal(b.files['a.js'], 'x');
 });

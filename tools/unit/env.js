@@ -18,7 +18,7 @@ function makeEnv({ failWrites = false } = {}) {
     key: i => Array.from(store.keys())[i], get length() { return store.size; }
   };
   const ctx = vm.createContext({ localStorage, console: { warn() {}, error() {}, log() {} }, setTimeout, clearTimeout, Date, Math, Set, Map, Object, Array, JSON, String, Number, URLSearchParams });
-  for (const f of ['js/config.js', 'js/utils.js', 'js/state.js', 'js/preview-builder.js']) {
+  for (const f of ['js/config.js', 'js/utils.js', 'js/storage.js', 'js/state.js', 'js/preview-builder.js']) {
     const p = path.join(ROOT, f);
     if (fs.existsSync(p)) vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: f });
   }

@@ -31,10 +31,10 @@ const Commands = {
 Commands.add({ id: 'ui.palette', label: 'لوحة الأوامر (بحث وفتح)', group: 'التحكم', hint: 'Ctrl+P', run: () => UI.openCommandPalette() });
 Commands.add({ id: 'files.new', label: 'ملف جديد', group: 'ملفات', hint: '＋', run: () => FILES.newFile() });
 Commands.add({ id: 'files.save', label: 'حفظ الملف الحالي', group: 'ملفات', hint: 'Ctrl+S', run: () => FILES.saveFile(STATE.data.activeId) });
-Commands.add({ id: 'files.saveAll', label: 'حفظ كل الملفات', group: 'ملفات', run: () => {
+Commands.add({ id: 'files.saveAll', label: 'حفظ كل الملفات', group: 'ملفات', run: async () => {
   STATE.files().forEach(f => STATE.markDirty(f.id, false));
   STATE.persist();
-  if (STATE.flush()) { UI.saveFlash(); UI.toast('تم حفظ كل الملفات 💾'); }
+  if (await STATE.flush()) { UI.saveFlash(); UI.toast('تم حفظ كل الملفات 💾'); }
   else UI.toast('تعذّر الحفظ: مساحة التخزين ممتلئة — صدِّر المشروع الآن ⚠️', 'error', 6000);
 }});
 Commands.add({ id: 'files.rename', label: 'إعادة تسمية الملف الحالي', group: 'ملفات', run: () => FILES.renameUI(STATE.data.activeId) });
@@ -328,8 +328,8 @@ const UI = {
 
     /* نتائج الحفظ + تفريغ الحفظ المعلّق عند مغادرة الصفحة (يمنع ضياع آخر ≤250ms من التعديل) */
     STATE.on('persisted', res => UI.onPersisted(res));
-    window.addEventListener('pagehide', () => STATE.flush());
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') STATE.flush(); });
+    window.addEventListener('pagehide', () => STATE.flushSync());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') STATE.flushSync(); });
 
     /* الحفظ بعد ذروة الإنعاش */
     window.addEventListener('beforeunload', e => {

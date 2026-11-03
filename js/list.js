@@ -19,7 +19,7 @@ const FILE_LIST = {
     const frag = document.createDocumentFragment();
     const files = STATE.files();
     const info = U.$('#storageInfo');
-    if (info) info.textContent = files.length + ' ملف · ' + Math.max(1, Math.round(U.storage.usage() / 1024)) + 'KB';
+    if (info) info.textContent = files.length + ' ملف · ' + Math.max(1, Math.round(files.reduce((n, f) => n + f.content.length, 0) / 1024)) + 'KB';
 
     files.forEach(f => {
       const li = document.createElement('li');

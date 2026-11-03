@@ -32,8 +32,9 @@ async function startServer(port) {
   child.kill(); throw new Error('server did not start');
 }
 
-async function test(name, fn, browser, base) {
+async function test(name, fn, browser, base, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
+  if (opts.init) await ctx.addInitScript(opts.init);
   const page = await ctx.newPage();
   const pageErrors = [];
   page.on('pageerror', e => { if (!/Error: boom/.test(String(e))) pageErrors.push(String(e)); }); /* boom = خطأ مقصود داخل المعاينة */
@@ -50,7 +51,13 @@ async function test(name, fn, browser, base) {
 
 function assert(c, msg) { if (!c) throw new Error(msg); }
 const typeAll = (page, txt) => page.evaluate(t => { const cm = kc.EDITOR.cm; cm.replaceRange(t, { line: 0, ch: 0 }, { line: cm.lastLine(), ch: 1e9 }); }, txt);
-const stored = (page, i = 0) => page.evaluate(i => { const s = localStorage.getItem('kingcode:state:v1'); return s ? JSON.parse(s).files[i].content : null; }, i);
+/* المحتوى المحفوظ فعليًا في IndexedDB للملف رقم i (بترتيب المشروع) */
+const stored = (page, i = 0) => page.evaluate(async i => {
+  const meta = await STORE._req('meta', s => s.get('state'));
+  if (!meta) return null;
+  const rec = await STORE._req('files', s => s.get(meta.order[i]));
+  return rec ? rec.content : null;
+}, i);
 const reload = async page => { await page.reload(); await page.waitForFunction(() => window.KINGCODE_READY); };
 
 async function importJson(page, obj) {
@@ -149,18 +156,77 @@ async function importJson(page, obj) {
     }, browser, base);
 
     /* ---- F-02: فشل التخزين ---- */
-    await test('F-02: storage full → persistent failure indicator, never "saved", repeated warnings', async ({ page }) => {
+    await test('F-02: storage write failure → persistent failure indicator, never "saved", repeated warnings, recovers', async ({ page }) => {
       await sleep(400);
-      await page.evaluate(() => { const s = 'z'.repeat(50000); try { for (let i = 0; i < 2000; i++) localStorage.setItem('fill' + i, s); } catch (e) {} });
-      await typeAll(page, 'x'.repeat(400000)); await sleep(700);
+      /* فشل حقيقي في IndexedDB: كل put يرمي QuotaExceededError */
+      await page.evaluate(() => { window.__origPut = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function () { throw new DOMException('quota', 'QuotaExceededError'); }; });
+      await typeAll(page, 'x'.repeat(4000)); await sleep(700);
       assert(await page.evaluate(() => document.querySelector('#saveIndicator').classList.contains('failed')), 'no failure indicator');
       const txt = await page.textContent('#saveIndicator');
       assert(!/حُفظ/.test(txt), 'false saved: ' + txt);
       assert((await page.evaluate(() => kc.STATE.saveFailed)) === true, 'saveFailed flag');
-      await page.evaluate(() => { for (let i = 0; i < 2000; i++) localStorage.removeItem('fill' + i); });
-      await typeAll(page, 'ok'); await sleep(500);
+      await page.evaluate(() => { IDBObjectStore.prototype.put = window.__origPut; });
+      await typeAll(page, 'recovered'); await sleep(700);
       assert(!(await page.evaluate(() => document.querySelector('#saveIndicator').classList.contains('failed'))), 'indicator stuck after recovery');
+      assert((await stored(page)) === 'recovered', 'recovered write not persisted');
     }, browser, base);
+
+    /* ---- A-01: طبقة التخزين ---- */
+    await test('A-01: IndexedDB is the backend and holds one record per file', async ({ page }) => {
+      assert((await page.evaluate(() => STORE.kind)) === 'idb', 'backend is not idb');
+      await sleep(500);
+      const n = await page.evaluate(() => STORE._req('files', s => s.count()));
+      assert(n === 3, 'expected 3 file records, got ' + n);
+    }, browser, base);
+
+    await test('A-01: a project far beyond the old 5 MB localStorage ceiling persists and reloads', async ({ page }) => {
+      await page.evaluate(async () => {
+        for (let i = 0; i < 8; i++) STATE.addFile('big' + i + '.txt', 'x'.repeat(2000000), { tab: false });
+        STATE.persist(); await STATE.flush();
+      });
+      assert((await page.evaluate(() => STATE.saveFailed)) === false, 'save failed for a 16 MB project');
+      await reload(page);
+      const sizes = await page.evaluate(() => kc.STATE.files().filter(f => f.name.startsWith('big')).map(f => f.content.length));
+      assert(sizes.length === 8 && sizes.every(n => n === 2000000), 'big files not restored: ' + sizes);
+    }, browser, base);
+
+    await test('A-01: edits write only the changed file record (differential save)', async ({ page }) => {
+      await sleep(500);
+      const before = await page.evaluate(() => { window.__puts = 0; const o = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function (v, k) { if (v && v.id) window.__puts++; return o.apply(this, arguments); }; return 1; });
+      await typeAll(page, '<p>only this file</p>'); await sleep(700);
+      const puts = await page.evaluate(() => window.__puts);
+      assert(puts === 1, 'expected exactly 1 file record written, got ' + puts);
+    }, browser, base);
+
+    await test('A-01: legacy localStorage project is migrated into IndexedDB on first run', async ({ page, ctx, base }) => {
+      const p2 = await ctx.newPage();
+      await p2.goto(base + '/manifest.json');
+      await p2.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('kingcode'); r.onsuccess = r.onerror = r.onblocked = () => res(); }));
+      await p2.evaluate(() => localStorage.setItem('kingcode:state:v1', JSON.stringify({ v: 1, files: [{ id: 'L1', name: 'legacy.md', content: 'LEGACY-DATA', updatedAt: 1 }], tabs: ['L1'], activeId: 'L1', settings: {}, uiPrefs: {} })));
+      await p2.close();
+      await page.evaluate(() => new Promise(res => { /* أغلق اتصال الصفحة الحالية بقاعدة البيانات قبل إعادة التحميل */ STORE._db && STORE._db.close(); res(); }));
+      await reload(page); await sleep(700);
+      assert((await page.evaluate(() => kc.STATE.files().map(f => f.name).join())) === 'legacy.md', 'legacy project not loaded');
+      assert((await page.evaluate(() => kc.EDITOR.cm.getValue())) === 'LEGACY-DATA', 'editor does not show migrated file');
+      await reload(page);
+      assert((await page.evaluate(() => STORE.kind)) === 'idb' && (await page.evaluate(() => kc.STATE.files()[0].content)) === 'LEGACY-DATA', 'not persisted in idb after migration');
+    }, browser, base);
+
+    await test('A-01: crash journal newer than the last save is recovered on boot', async ({ page }) => {
+      await sleep(500);
+      const id = await page.evaluate(() => kc.STATE.files()[0].id);
+      await page.evaluate(id => localStorage.setItem('kingcode:journal:v1', JSON.stringify({ t: Date.now() + 5000, files: [{ id, name: 'index.html', content: 'RECOVERED-FROM-JOURNAL', updatedAt: 9 }], tabs: [id], activeId: id })), id);
+      await reload(page); await sleep(500);
+      assert((await page.evaluate(() => kc.STATE.files()[0].content)) === 'RECOVERED-FROM-JOURNAL', 'journal not applied');
+      assert((await stored(page)) === 'RECOVERED-FROM-JOURNAL', 'journal content not committed to idb');
+    }, browser, base);
+
+    await test('A-01: falls back to localStorage when IndexedDB is unavailable (private modes)', async ({ page }) => {
+      assert((await page.evaluate(() => STORE.kind)) === 'local', 'did not fall back');
+      await typeAll(page, 'FALLBACK-OK'); await sleep(600);
+      await reload(page);
+      assert((await page.evaluate(() => kc.STATE.files()[0].content)) === 'FALLBACK-OK', 'fallback persistence failed');
+    }, browser, base, { init: () => { try { Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true }); } catch (e) {} } });
 
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */
     await test('F-05: auto-save off keeps edits uncommitted until Ctrl+S', async ({ page }) => {

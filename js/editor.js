@@ -68,7 +68,7 @@ const EDITOR = {
       if (autoSave) {
         STATE.markDirty(id, false);
         STATE._flash = true;
-        STATE.persist();
+        STATE.persist(id);
       } else {
         STATE.markDirty(id, true);
       }
@@ -85,7 +85,7 @@ const EDITOR = {
     STATE.on('active:change', id => this.open(id));
     STATE.on('file:renamed', id => this.docModeChanged(id));
     /* إعادة تفعيل الحفظ التلقائي يحفظ ما كان معلّقًا */
-    STATE.on('settings:autoSave', on => { if (on && STATE.data.dirty.size) { STATE.clearDirty(); STATE.persist(); } });
+    STATE.on('settings:autoSave', on => { if (on && STATE.data.dirty.size) { STATE.clearDirty(); STATE.persist(); } }); /* clearDirty يسجّل الملفات المعلّقة تلقائيًا */
     STATE.on('settings:fontSize', v => this.setFontSize(v));
     STATE.on('settings:theme', () => this.applyTheme());
     STATE.on('settings:uiTheme', () => this.applyTheme());

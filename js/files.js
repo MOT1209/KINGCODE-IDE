@@ -5,8 +5,6 @@
  * ========================================================= */
 'use strict';
 
-const IMPORT_BACKUP_KEY = 'kingcode:import-backup:v1';
-
 const FILES = {
 
   /** أسماء ملفات العرض UTC */
@@ -108,15 +106,15 @@ const FILES = {
     });
   },
 
-  saveFile(id) {
+  async saveFile(id) {
     const f = STATE.file(id);
     if (!f) return;
     if (STATE.data.activeId === id && EDITOR.cm) {
       f.content = EDITOR.cm.getValue();
     }
     STATE.markDirty(id, false);
-    STATE.persist();
-    if (STATE.flush()) {
+    STATE.persist(id);
+    if (await STATE.flush()) {
       UI.saveFlash('done');
       UI.toast('حُفظ «' + f.name + '» 💾');
     } else {
@@ -152,15 +150,9 @@ const FILES = {
   /* ---------- نسخة احتياطية ما قبل الاستيراد (بند 1.6 من docs/audit/DEVELOPMENT_ROADMAP) ---------- */
 
   /** يصوغ نسخة احتياطية من المشروع الحالي قبل استبداله بالاستيراد؛ يعيد true عند النجاح، وإلا يسجّل تحذيرًا في الكونسول (جهد وليس ضمانًا) */
-  _backupCurrent() {
-    try {
-      const files = STATE.files().map(f => ({ [f.name]: f.content }));
-      localStorage.setItem(IMPORT_BACKUP_KEY, JSON.stringify({ savedAt: Date.now(), files: Object.assign({}, ...files) }));
-      return true;
-    } catch (e) {
-      console.warn('[kingCode] import backup skipped:', (e && e.message) || e);
-      return false;
-    }
+  async _backupCurrent() {
+    const files = STATE.files().map(f => ({ [f.name]: f.content }));
+    return STORE.putBackup({ savedAt: Date.now(), files: Object.assign({}, ...files) });
   },
 
   /** يطبّق ملفات مشروع جديد (نتيجة U.sanitizeFiles) بعد التنقية والتأكيد — مستخرج من importProject الأصلية */
@@ -177,10 +169,8 @@ const FILES = {
   },
 
   /** استعادة آخر نسخة احتياطية (لوحة الأوامر: «ملفات ← استعادة نسخة ما قبل الاستيراد») */
-  restoreBackup() {
-    let raw = null;
-    try { raw = JSON.parse(localStorage.getItem(IMPORT_BACKUP_KEY) || 'null'); }
-    catch (e) { raw = null; }
+  async restoreBackup() {
+    const raw = await STORE.getBackup();
     if (!raw || !raw.files) { UI.toast('لا توجد نسخة احتياطية للمشروع السابق 🔒', 'warn'); return; }
     const clean = U.sanitizeFiles(raw.files);
     if (!clean) { UI.toast('النسخة الاحتياطية تالفة ولا يمكن استعادتها', 'error'); return; }
@@ -213,7 +203,7 @@ const FILES = {
         const noteTxt = U.describeNotes(clean.notes);
         /* بند 1.6: نسخة احتياطية قبل الاستبدال + تأكيد صريح — لا استبدال صامت */
         const current = STATE.files().length;
-        const backupOk = this._backupCurrent();
+        const backupOk = await this._backupCurrent();
         UI.confirm({
           title: 'استيراد مشروع؟',
           message: 'سيستبدل المشروع الحالي (' + current + ' ملف) بمحتوى الملف المختار (' + files.length + ' ملف).'

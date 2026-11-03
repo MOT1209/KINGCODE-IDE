@@ -35,46 +35,7 @@ const U = {
     return Math.min(max, Math.max(min, v));
   },
 
-  /* ---------- التخزين الآمن (localStorage متزامن + عزل أخطاء) ----------
- * ملاحظة: IndexedDB غير متزامن بطبيعته وبه مستهلكون متزامنون هنا
- * (state.hydrate، TABS.open، EDITOR.change، ...). أي ترقية مستقبلية
- * إلى IDB تتطلب جعل كل المستهلكين async أولاً؛ لا تُدمج IDB هنا دون ذلك.
- */
-
-  storage: {
-    get(key, fallback = null) {
-      try {
-        const raw = localStorage.getItem(key);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch (e) {
-        console.warn('[kingCode] storage read failed:', e);
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-        return true;
-      } catch (e) {
-        /* quota exceeded أو وضع خاص: الفشل يُبلَّغ عبر STATE ('persisted' {ok:false}) والواجهة تعرضه بشكل دائم */
-        console.warn('[kingCode] storage write failed:', (e && e.name) || e);
-        return false;
-      }
-    },
-    remove(key) {
-      try { localStorage.removeItem(key); } catch (e) { /* تجاهل */ }
-    },
-    usage() {
-      try {
-        let total = 0;
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          total += (k.length + (localStorage.getItem(k) || '').length) * 2;
-        }
-        return total;
-      } catch (e) { return 0; }
-    }
-  },
+  /* التخزين الدائم: انظر js/storage.js (STORE) — IndexedDB مع localStorage احتياطًا */
 
   /* ---------- التفريغ/الإثراء ---------- */
 

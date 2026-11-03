@@ -13,6 +13,7 @@ const STATE = {
     activeId: null,
     dirty: new Set(),   // files with unsaved buffer (autoSave = off)
     committed: new Map(), // id -> last saved content of a dirty file (what persist() writes while autoSave is off)
+    folders: [],        // مجلدات فارغة صريحة (المجلدات غير الفارغة تُستنتج من مسارات الملفات)
     settings: {
       theme: 'ayu-mirage',
       uiTheme: 'dark',
@@ -82,7 +83,7 @@ const STATE = {
   markDirty(id, on) {
     const has = this.data.dirty.has(id);
     if (on && !has) { this.data.dirty.add(id); this.emit('dirty', true); }
-    else if (!on && has) { this.data.dirty.delete(id); this.data.committed.delete(id); this.emit('dirty', false); }
+    else if (!on && has) { this.data.dirty.delete(id); this.data.committed.delete(id); this._changed.add(id); this.emit('dirty', false); }
   },
   /** يسجّل المحتوى المحفوظ قبل أول تعديل غير محفوظ (يُستدعى قبل تغيير f.content) */
   beginUnsaved(id) {
@@ -91,6 +92,7 @@ const STATE = {
   },
   clearDirty() {
     const had = this.data.dirty.size > 0;
+    this.data.dirty.forEach(id => this._changed.add(id));
     this.data.dirty.clear();
     this.data.committed.clear();
     if (had) this.emit('dirty', false);
@@ -143,7 +145,7 @@ const STATE = {
     const old = f.name;
     f.name = newName;
     f.updatedAt = Date.now();
-    this.persist();
+    this.persist(id);
     return { ok: true, old, file: f };
   },
 
@@ -169,44 +171,80 @@ const STATE = {
     this.data.tabs = [this.data.files[0].id];
     this.data.activeId = this.data.files[0].id;
     this.clearDirty();
-    this.persist();
+    this.persist(this.ALL);
   },
 
-  /* ---------- التخزين الدائم ---------- */
+  /* ---------- التخزين الدائم ----------
+     الكتابة غير متزامنة عبر STORE (IndexedDB أو localStorage). persist(ids) يسجّل الملفات المتغيرة فقط
+     (persist() بلا معامل = الإعدادات/التبويبات/النشط فقط؛ persist(STATE.ALL) = كل الملفات)، ثم تُجمَّع الكتابات
+     بـ debounce وتُسلسَل (لا كتابتان متوازيتان). الملفات غير المحفوظة (autoSave=off) تُكتب بآخر محتوى محفوظ. */
+  ALL: '*',
   _persistDeb: null,
   _pending: false,
+  _changed: new Set(),
+  _all: false,
+  _chain: Promise.resolve(true),
+  saveFailed: false,
 
-  /** يكتب الحالة فورًا؛ يعيد true عند النجاح. الملفات غير المحفوظة (autoSave=off) تُكتب بآخر محتوى محفوظ لا بالتعديل الجاري. */
-  _write() {
-    this._pending = false;
+  _snapshot() {
     const d = this.data;
     const files = d.files.map(f => (d.dirty.has(f.id) && d.committed.has(f.id))
       ? Object.assign({}, f, { content: d.committed.get(f.id) }) : f);
-    const ok = U.storage.set(KC.storageKey, {
-      v: 1, files, tabs: d.tabs, activeId: d.activeId, settings: d.settings, uiPrefs: d.uiPrefs
-    });
+    return { files, tabs: d.tabs, activeId: d.activeId, settings: d.settings, uiPrefs: d.uiPrefs, folders: d.folders };
+  },
+
+  async _write() {
+    if (!this._pending) return !this.saveFailed;
+    this._pending = false;
+    const all = this._all;
+    const ids = all ? null : Array.from(this._changed);
+    this._all = false;
+    this._changed = new Set();
+    const startedAt = Date.now();
+    const snapshot = this._snapshot();
+    let ok = false;
+    try { ok = await STORE.save(snapshot, ids); } catch (e) { ok = false; }
+    if (!ok) {
+      /* لا نفقد معلومة «ما الذي لم يُكتب»: أعد وسمه ليُعاد في المحاولة التالية */
+      if (all) this._all = true; else (ids || []).forEach(i => this._changed.add(i));
+      this._pending = true;
+    } else if (!this._pending) {
+      STORE.clearJournal(startedAt);
+    }
     this.saveFailed = !ok;
     this.emit('persisted', { ok });
     return ok;
   },
 
-  persist() {
+  persist(ids) {
+    if (ids === this.ALL) this._all = true;
+    else if (typeof ids === 'string') this._changed.add(ids);
+    else if (Array.isArray(ids)) ids.forEach(i => this._changed.add(i));
     this._pending = true;
     if (this._persistDeb) this._persistDeb.cancel();
-    this._persistDeb = U.debounce(() => this._write(), KC.timing.persist);
+    this._persistDeb = U.debounce(() => { this._chain = this._chain.then(() => this._write()); }, KC.timing.persist);
     this._persistDeb();
   },
 
-  /** كتابة فورية لأي حفظ معلّق (pagehide/visibilitychange/حفظ يدوي). يعيد true إذا لا شيء معلّق أو نجحت الكتابة. */
+  /** كتابة فورية لأي حفظ معلّق (حفظ يدوي/قبل التحديث). يعيد Promise<boolean>. */
   flush() {
     if (this._persistDeb) this._persistDeb.cancel();
-    return this._pending ? this._write() : !this.saveFailed;
+    this._chain = this._chain.then(() => this._write());
+    return this._chain;
   },
-  saveFailed: false,
+
+  /** عند pagehide/visibilitychange: لا يمكن انتظار الكتابة غير المتزامنة — اكتب سجل طوارئ متزامنًا ثم ابدأ الكتابة العادية */
+  flushSync() {
+    if (!this._pending) return;
+    const ids = this._all ? this.data.files.map(f => f.id) : Array.from(this._changed);
+    const snap = this._snapshot();
+    const changedFiles = snap.files.filter(f => ids.includes(f.id));
+    STORE.saveSync(snap, changedFiles);
+    this.flush();
+  },
 
   /** يستعيد الحالة من التخزين — يعيد true إن وُجدت بيانات سابقة */
-  hydrate() {
-    const raw = U.storage.get(KC.storageKey, null);
+  hydrate(raw) {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.files)) return false;
 
     /* ملفات: تحقق وانتقاء */
@@ -242,6 +280,7 @@ const STATE = {
     }
 
     this.data.files = files;
+    this.data.folders = Array.isArray(raw.folders) ? raw.folders.filter(x => typeof x === 'string') : [];
 
     /* تبويبات صالحة فقط */
     this.data.tabs = (Array.isArray(raw.tabs) ? raw.tabs : [])
@@ -278,7 +317,7 @@ const STATE = {
     }));
     this.data.tabs = [this.data.files[0].id];
     this.data.activeId = this.data.files[0].id;
-    this.persist();
+    this.persist(this.ALL);
     return true;
   }
 };
