@@ -56,12 +56,8 @@ const U = {
         localStorage.setItem(key, JSON.stringify(value));
         return true;
       } catch (e) {
-        /* quota exceeded أو وضع خاص: إخطار واحد غير متكرر */
-        if (!this._quotaWarned) {
-          this._quotaWarned = true;
-          try { UI.toast('مساحة التخزين ممتلئة — صدِّر المشروع لتفادي فقدان البيانات ⚠️', 'warn', 6000); }
-          catch (_) { console.warn('[kingCode] storage quota exceeded:', e); }
-        }
+        /* quota exceeded أو وضع خاص: الفشل يُبلَّغ عبر STATE ('persisted' {ok:false}) والواجهة تعرضه بشكل دائم */
+        console.warn('[kingCode] storage write failed:', (e && e.name) || e);
         return false;
       }
     },
@@ -119,18 +115,51 @@ const U = {
     return n;
   },
 
-  /** تنقية مدخلات JSON القادمة من الاستيراد */
+  /**
+   * تنقية مدخلات JSON القادمة من الاستيراد/الاستعادة.
+   * يقبل كائنًا {اسم: محتوى | {content}} فقط (المصفوفات مرفوضة).
+   * يعيد { files, notes } أو null؛ notes تُعرض للمستخدم قبل التأكيد — لا إسقاط صامت:
+   *   truncated: ملفات تجاوزت الحد الأقصى للعدد | renamed: أسماء أُعيدت تسميتها لتفادي التكرار
+   *   blank: محتوى غير نصي استُبدل بنص فارغ | tooLarge: ملفات تجاوزت حجم الملف الأقصى (أُسقطت) | invalid: أسماء غير صالحة (أُسقطت)
+   */
   sanitizeFiles(raw) {
-    if (!raw || typeof raw !== 'object') return null;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const notes = { truncated: 0, renamed: 0, blank: 0, tooLarge: 0, invalid: 0 };
     const out = [];
+    const used = new Set();
     for (const [k, v] of Object.entries(raw)) {
-      const name = U.safeFileName(k);
-      if (!name) continue;
-      const content = typeof v === 'string' ? v
-        : v && typeof v === 'object' && typeof v.content === 'string' ? v.content : '';
+      let name = U.safeFileName(k);
+      if (!name || name === '.' || name === '..') { notes.invalid++; continue; }
+      let content;
+      if (typeof v === 'string') content = v;
+      else if (v && typeof v === 'object' && typeof v.content === 'string') content = v.content;
+      else { content = ''; notes.blank++; }
+      if (content.length > KC.limits.maxFileChars) { notes.tooLarge++; continue; }
+      if (out.length >= KC.limits.maxFiles) { notes.truncated++; continue; }
+      if (used.has(name)) {
+        const dot = name.lastIndexOf('.');
+        const stem = dot > 0 ? name.slice(0, dot) : name;
+        const ext = dot > 0 ? name.slice(dot) : '';
+        let i = 2, cand;
+        do { cand = stem + '-' + i + ext; i++; } while (used.has(cand));
+        name = cand;
+        notes.renamed++;
+      }
+      used.add(name);
       out.push({ id: U.uid(), name, content, updatedAt: Date.now() });
     }
-    return out.length ? out : null;
+    return out.length ? { files: out, notes } : null;
+  },
+
+  /** نص عربي يلخّص ملاحظات sanitizeFiles للمستخدم (فارغ إن لا شيء) */
+  describeNotes(n) {
+    const p = [];
+    if (n.truncated) p.push('سيُهمَل ' + n.truncated + ' ملف لتجاوز الحد الأقصى (' + KC.limits.maxFiles + ')');
+    if (n.tooLarge) p.push('سيُهمَل ' + n.tooLarge + ' ملف أكبر من الحد المسموح');
+    if (n.invalid) p.push('سيُهمَل ' + n.invalid + ' اسم غير صالح');
+    if (n.renamed) p.push('ستُعاد تسمية ' + n.renamed + ' ملف مكرر الاسم');
+    if (n.blank) p.push(n.blank + ' ملف بمحتوى غير نصي سيصبح فارغًا');
+    return p.join('، ');
   },
 
   /** مساعد: ينتظر انتقال الشاشة ثم ينفّذ (للتحديث البصري) */

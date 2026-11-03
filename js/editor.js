@@ -60,13 +60,15 @@ const EDITOR = {
       const id = STATE.data.activeId;
       const f = STATE.file(id);
       if (!f) return;
+      const autoSave = STATE.settings().autoSave;
+      if (!autoSave) STATE.beginUnsaved(id); /* احفظ آخر محتوى محفوظ قبل التعديل */
       f.content = cm.getValue();
       f.updatedAt = Date.now();
 
-      if (STATE.settings().autoSave) {
+      if (autoSave) {
         STATE.markDirty(id, false);
+        STATE._flash = true;
         STATE.persist();
-        UI.saveFlash();
       } else {
         STATE.markDirty(id, true);
       }
@@ -82,6 +84,8 @@ const EDITOR = {
 
     STATE.on('active:change', id => this.open(id));
     STATE.on('file:renamed', id => this.docModeChanged(id));
+    /* إعادة تفعيل الحفظ التلقائي يحفظ ما كان معلّقًا */
+    STATE.on('settings:autoSave', on => { if (on && STATE.data.dirty.size) { STATE.clearDirty(); STATE.persist(); } });
     STATE.on('settings:fontSize', v => this.setFontSize(v));
     STATE.on('settings:theme', () => this.applyTheme());
     STATE.on('settings:uiTheme', () => this.applyTheme());

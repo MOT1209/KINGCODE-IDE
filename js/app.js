@@ -77,35 +77,46 @@ const APP = {
     meta.content = v || (STATE.settings().uiTheme === 'dark' ? '#12253a' : '#1d3152');
   },
 
+  _updating: false,
+  updateReady: false,
+
   registerSw() {
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.register('./service-worker.js').then(reg => {
       this.swReg = reg;
-      reg.addEventListener?.('updatefound', () => {
-        const nw = reg.installing;
+      const watch = nw => {
         if (!nw) return;
         nw.addEventListener('statechange', () => {
           if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            UI.toast('🆕 تحديث kingCode جديد — سينطبق عند إعادة الفتح', 'info', 6000);
-            setTimeout(() => {
-              try { nw.postMessage({ type: 'SKIP_WAITING' }); } catch (_) {}
-            }, 4000);
+            this.updateReady = true;
+            UI.toast('🆕 تحديث kingCode جاهز — نفّذ «تطبيق التحديث» من لوحة الأوامر (Ctrl+P) أو أعد فتح التطبيق', 'info', 9000);
           }
         });
-      });
+      };
+      if (reg.waiting && navigator.serviceWorker.controller) { this.updateReady = true; }
+      reg.addEventListener?.('updatefound', () => watch(reg.installing));
     }).catch(err => console.warn('[kingCode] SW register failed:', err));
 
-    let refreshing = false;
+    /* إعادة التحميل فقط بطلب المستخدم الصريح — لا مقاطعة للكتابة */
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
+      if (!this._updating) return;
       location.reload();
     });
   },
 
-  checkForUpdate() {
+  /** يطبّق التحديث الجاهز: يحفظ أولًا ثم يفعّل الـ SW الجديد ويعيد التحميل */
+  applyUpdate() {
+    const reg = this.swReg;
+    if (!reg || !reg.waiting) { UI.toast('لا يوجد تحديث جاهز حاليًا', 'info'); return; }
+    if (!STATE.flush()) { UI.toast('تعذّر الحفظ قبل التحديث — صدِّر المشروع أولًا', 'error'); return; }
+    if (STATE.data.dirty.size) { UI.toast('احفظ الملفات غير المحفوظة قبل التحديث (Ctrl+S)', 'warn'); return; }
+    this._updating = true;
+    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+  },
+
+  checkForUpdate(manual = false) {
     if (this.swReg) this.swReg.update();
-    UI.toast('جارٍ البحث عن التحديثات…', 'info', 1800);
+    if (manual) UI.toast(this.updateReady ? 'يوجد تحديث جاهز — نفّذ «تطبيق التحديث»' : 'جارٍ البحث عن التحديثات…', 'info', 2400);
   },
 
   /** أفعال مشروطة عبر رابط (اختيار قصيرة في manifest shortcuts) */

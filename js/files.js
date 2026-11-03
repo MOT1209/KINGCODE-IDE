@@ -92,7 +92,7 @@ const FILES = {
       const idx = STATE.data.files.indexOf(f);
       STATE.data.files.splice(idx, 1);
       STATE.data.tabs = STATE.data.tabs.filter(t => t !== id);
-      STATE.data.dirty.delete(id);
+      STATE.markDirty(id, false);
 
       if (STATE.data.activeId === id) {
         STATE.data.activeId = STATE.data.tabs[0] || (STATE.data.files[0] && STATE.data.files[0].id) || null;
@@ -145,8 +145,12 @@ const FILES = {
     }
     STATE.markDirty(id, false);
     STATE.persist();
-    UI.saveFlash('done');
-    UI.toast('حُفظ «' + f.name + '» 💾');
+    if (STATE.flush()) {
+      UI.saveFlash('done');
+      UI.toast('حُفظ «' + f.name + '» 💾');
+    } else {
+      UI.toast('تعذّر الحفظ: مساحة التخزين ممتلئة — صدِّر المشروع الآن ⚠️', 'error', 6000);
+    }
     STATE.emit('file:content', id);
   },
 
@@ -168,7 +172,7 @@ const FILES = {
   },
 
   exportProjectHTML() {
-    const html = PREVIEW.buildDocument();
+    const html = PREVIEW.buildDocument({ bridge: false });
     if (U.downloadText('kingcode-project.html', html, 'text/html')) {
       UI.toast('تم تصدير المشروع كملف HTML مستقل 🌐');
     }
@@ -193,7 +197,7 @@ const FILES = {
     STATE.data.files = files;
     STATE.data.tabs = [files[0].id];
     STATE.data.activeId = files[0].id;
-    STATE.data.dirty.clear();
+    STATE.clearDirty();
     STATE.persist();
     EDITOR.docs.clear();
     FILE_LIST.render();
@@ -210,13 +214,15 @@ const FILES = {
     try { raw = JSON.parse(localStorage.getItem(IMPORT_BACKUP_KEY) || 'null'); }
     catch (e) { raw = null; }
     if (!raw || !raw.files) { UI.toast('لا توجد نسخة احتياطية للمشروع السابق 🔒', 'warn'); return; }
-    const files = U.sanitizeFiles(raw.files);
-    if (!files) { UI.toast('النسخة الاحتياطية تالفة ولا يمكن استعادتها', 'error'); return; }
+    const clean = U.sanitizeFiles(raw.files);
+    if (!clean) { UI.toast('النسخة الاحتياطية تالفة ولا يمكن استعادتها', 'error'); return; }
+    const files = clean.files;
+    const noteTxt = U.describeNotes(clean.notes);
     const when = raw.savedAt ? new Date(raw.savedAt).toLocaleString('ar') : '';
     const before = STATE.files().length;
     UI.confirm({
       title: 'استعادة النسخة الاحتياطية؟',
-      message: 'سيستبدل المشروع الحالي (' + before + ' ملف) بالنسخة المحفوظة' + (when ? ' بتاريخ ' + when : '') + ' (' + files.length + ' ملف). المتابعة؟',
+      message: 'سيستبدل المشروع الحالي (' + before + ' ملف) بالنسخة المحفوظة' + (when ? ' بتاريخ ' + when : '') + ' (' + files.length + ' ملف).' + (noteTxt ? ' ملاحظات: ' + noteTxt + '.' : '') + ' المتابعة؟',
       okLabel: 'استعادة'
     }, ok => {
       if (!ok) return;
@@ -233,14 +239,17 @@ const FILES = {
       try {
         /* تنقية كاملة قبل اللمس بالحالة (SC-05): ملف تالف يُكتشف قبل أي استبدال */
         const parsed = JSON.parse(await U.readText(file));
-        const files = U.sanitizeFiles(parsed);
-        if (!files) throw new Error('بنية غير معروفة');
+        const clean = U.sanitizeFiles(parsed);
+        if (!clean) throw new Error('بنية غير معروفة (يُتوقع كائن {اسم الملف: المحتوى})');
+        const files = clean.files;
+        const noteTxt = U.describeNotes(clean.notes);
         /* بند 1.6: نسخة احتياطية قبل الاستبدال + تأكيد صريح — لا استبدال صامت */
         const current = STATE.files().length;
         const backupOk = this._backupCurrent();
         UI.confirm({
           title: 'استيراد مشروع؟',
           message: 'سيستبدل المشروع الحالي (' + current + ' ملف) بمحتوى الملف المختار (' + files.length + ' ملف).'
+            + (noteTxt ? ' تنبيه: ' + noteTxt + '.' : '')
             + (backupOk ? ' حُفظت نسخة احتياطية، وتُستعاد من لوحة الأوامر «استعادة نسخة ما قبل الاستيراد».' : ' تعذّر حفظ نسخة احتياطية (المخزن ممتلئ؟) — لن تكون هناك فرصة رجوع!'),
           danger: true,
           okLabel: 'استيراد واستبدال'

@@ -9,7 +9,7 @@
 const KC = {
 
   /** مصفوفة التوقيع — يُغيَّر عند تعديل بنية التخزين */
-  version: 'kingCode ' + '1.0.6',
+  version: 'kingCode ' + '1.0.7',
 
   /** مفتاح التخزين في localStorage */
   storageKey: 'kingcode:state:v1',
@@ -26,7 +26,8 @@ const KC = {
   limits: {
     consoleMax: 200,
     tabsMax: 12,
-    maxFiles: 60
+    maxFiles: 60,
+    maxFileChars: 2000000
   },
 
   /* سمعات UI */
