@@ -15,6 +15,8 @@ const FILE_LIST = {
     this.filterEl = U.$('#fileFilter');
     STATE.on('files:change', () => this.render());
     STATE.on('dirty', () => this.render());
+    /* تمييز الملف النشط في المستكشف يتبع التبديل من التبويبات/اللوحة/Alt+أسهم (كان يبقى على الملف القديم) */
+    STATE.on('active:change', () => this.render());
     STATE.on('pref:collapsedFolders', () => this.render());
     if (this.filterEl) {
       this.filterEl.addEventListener('input', () => { this.filter = this.filterEl.value.trim().toLowerCase(); this.render(); });

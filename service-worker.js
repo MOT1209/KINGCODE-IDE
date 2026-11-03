@@ -4,7 +4,7 @@
  * ========================================================= */
 'use strict';
 
-const VERSION = 'kingcode-v1.4.2';
+const VERSION = 'kingcode-v1.5.0';
 const CACHE_PREFIX = 'kingcode-cache-';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
 
@@ -14,6 +14,7 @@ const ASSETS = [
   './',
   'index.html',
   'sandbox.html',
+  'privacy.html',
   'manifest.json',
 
   /* الأيقونات */

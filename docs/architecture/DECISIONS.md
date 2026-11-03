@@ -49,3 +49,9 @@ The application has **zero runtime dependencies**. These four packages are `devD
 ## ADR-7 — Single write path for project files
 - **Decision.** Every create/rename/move/delete/replace of files and folders goes through `STATE` (`addFile`, `renameFile`, `removeFile`, `addFolder`, `renameFolder`, `removeFolder`, `replaceProject`). `FILES` is the UI layer only. Names are virtual `/`-separated paths sanitized per segment (`U.safePath`), so a path cannot escape the project; file/folder clashes are rejected for user actions and auto-resolved for imports/legacy data.
 - **Why.** The cap was enforced in some mutators and not others (F-01), duplicates slipped in (F-04), and one importer left the editor on the old document (F-14).
+
+## ADR-8 — Ship to the stores by packaging the PWA (TWA on Android, MSIX on Windows)
+- **Context.** The goal is Google Play and the Microsoft Store. The app is already an installable offline PWA with a hardened security model and E2E coverage on three engines.
+- **Decision.** Package the existing PWA (Trusted Web Activity via PWABuilder/Bubblewrap; MSIX via PWABuilder) instead of introducing a native wrapper project into this repository. Keep store-facing assets in the repo (`privacy.html`, `screenshots/`, manifest, hosting headers, `docs/store/`) and **verify them with `npm run store:check`**. Native shells (Capacitor, Tauri) stay a later step for features the PWA cannot provide (real folders, terminal, Git).
+- **Consequences.** No new runtime code and no second codebase. Behaviour inside TWA/WebView2 is **unverified** until tested on real devices (checklists in `docs/store/`); known gaps include system-Back handling on Android. Signing keys, store accounts and public hosting are owner decisions and are deliberately not automated or stored in the repository.
+- **Revisit** when native folder access, a real terminal, Git, or store-specific integrations are required.

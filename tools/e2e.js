@@ -310,6 +310,20 @@ async function importJson(page, obj) {
     const fillPrompt = async (page, value) => { await page.waitForSelector('#prompt-modal', { state: 'visible' }); await page.fill('#prompt-input', value); await page.click('#prompt-ok'); await sleep(250); };
     const confirmOk = async page => { await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(300); };
 
+    await test('UX: the explorer highlights exactly the active file after switching tabs, palette and Alt+Arrow', async ({ page }) => {
+      await page.evaluate(() => { FILES.create('one.js', '1'); FILES.create('two.js', '2'); });
+      await sleep(200);
+      const activeRows = () => page.$$eval('#file-list .file-item[data-kind="file"].active', n => n.map(r => r.querySelector('.file-name').textContent));
+      const expectActive = async (name, why) => { const a = await activeRows(); assert(a.length === 1 && a[0] === name, why + ': expected only ' + name + ' highlighted, got ' + JSON.stringify(a)); assert((await page.evaluate(() => kc.STATE.file(kc.STATE.data.activeId).name)) === name, why + ': state mismatch'); };
+      await expectActive('two.js', 'after create');
+      await page.click('#tab-container .tab:has-text("one.js")'); await sleep(200);
+      await expectActive('one.js', 'after clicking a tab');
+      await page.evaluate(() => { kc.EDITOR.cm.focus(); });
+      await page.keyboard.press('Alt+ArrowRight'); await sleep(200);
+      assert((await activeRows()).length === 1, 'Alt+Arrow left several/no highlighted rows');
+      assert((await page.$eval('#file-list .file-item.active', r => r.getAttribute('aria-selected'))) === 'true', 'aria-selected not set on the active row');
+    }, browser, base);
+
     await test('A-03: nested path creates a folder row; folders collapse/expand and the state survives reload', async ({ page }) => {
       await page.evaluate(() => { FILES.create('src/app.js', 'x'); FILES.create('src/lib/util.js', 'y'); });
       await sleep(200);
@@ -403,6 +417,20 @@ async function importJson(page, obj) {
     }, browser, base);
 
     /* ---- Phase 5: إمكانية الوصول ---- */
+    await test('STORE: privacy page is served, linked from Settings (new tab, noopener), bilingual and script-free', async ({ page, base }) => {
+      await page.evaluate(() => UI.openSettings());
+      const link = await page.$eval('#settings-modal a[href="privacy.html"]', a => ({ target: a.target, rel: a.rel }));
+      assert(link.target === '_blank' && /noopener/.test(link.rel), 'privacy link must open in a new tab with noopener: ' + JSON.stringify(link));
+      const p2 = await page.context().newPage();
+      const res = await p2.goto(base + '/privacy.html');
+      assert(res.status() === 200, 'privacy.html status ' + res.status());
+      const title = await p2.title();
+      assert(/سياسة الخصوصية/.test(title), 'unexpected title: ' + title);
+      assert((await p2.$$('script')).length === 0, 'privacy page must contain no scripts');
+      assert((await p2.$$('section[lang="en"]')).length === 1, 'English section missing');
+      await p2.close();
+    }, browser, base);
+
     await test('A11Y: every button has an accessible name; tree/option roles are correct', async ({ page }) => {
       await sleep(300);
       const unnamed = await page.evaluate(() => Array.from(document.querySelectorAll('button')).filter(b => !((b.getAttribute('aria-label') || b.textContent || '').trim())).map(b => b.outerHTML.slice(0, 80)));
@@ -550,6 +578,13 @@ async function importJson(page, obj) {
     /* ---- Phase 5: تخطيط الجوال/الآيباد/سطح المكتب ---- */
     const PHONE = { viewport: { width: 390, height: 800 }, touch: true, mobile: true };
     const visible = (page, sel) => page.evaluate(sel => { const e = document.querySelector(sel); if (!e) return false; const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0; }, sel);
+    /* ينتظر تحقق حالة الظهور (حتى 4 ث) بدل نوم ثابت: الشريط الجانبي يتحرك بانتقال CSS 0.18s وقد يتأخر على مشغّلات CI البطيئة */
+    const waitVisible = async (page, sel, want, why) => {
+      const deadline = Date.now() + 4000;
+      let now;
+      do { now = await visible(page, sel); if (now === want) return; await sleep(100); } while (Date.now() < deadline);
+      throw new Error(why + ' (expected ' + sel + ' visible=' + want + ' within 4 s)');
+    };
 
     await test('UX phone: one full-height pane at a time, labeled bottom nav, touch targets >= 44px, no overflow', async ({ page }) => {
       assert(await visible(page, '.mobile-quickbar'), 'bottom nav missing');
@@ -598,16 +633,16 @@ async function importJson(page, obj) {
     }, browser, base, { viewport: { width: 820, height: 1100 }, touch: true });
 
     await test('UX desktop: sidebar open by default, user choice persists, and a trip through phone size does not overwrite it', async ({ page }) => {
-      assert(await visible(page, '#sidebar'), 'sidebar not visible on desktop');
-      await page.click('#btnSidebar'); await sleep(300);
-      assert(!(await visible(page, '#sidebar')), 'sidebar did not hide');
+      await waitVisible(page, '#sidebar', true, 'sidebar not visible on desktop');
+      await page.click('#btnSidebar');
+      await waitVisible(page, '#sidebar', false, 'sidebar did not hide');
       await page.setViewportSize({ width: 390, height: 800 }); await sleep(400);
       await page.setViewportSize({ width: 1280, height: 800 }); await sleep(400);
-      assert(!(await visible(page, '#sidebar')), 'desktop choice (hidden) was lost after resizing through phone size');
+      await waitVisible(page, '#sidebar', false, 'desktop choice (hidden) was lost after resizing through phone size');
       await sleep(400); await reload(page);
-      assert(!(await visible(page, '#sidebar')), 'desktop sidebar choice not persisted');
-      await page.click('#btnSidebar'); await sleep(300);
-      assert(await visible(page, '#sidebar'), 'sidebar did not show again');
+      await waitVisible(page, '#sidebar', false, 'desktop sidebar choice not persisted');
+      await page.click('#btnSidebar');
+      await waitVisible(page, '#sidebar', true, 'sidebar did not show again');
     }, browser, base);
 
     /* ---- F-05: الحفظ التلقائي المعطّل ---- */

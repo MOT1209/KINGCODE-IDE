@@ -3,6 +3,35 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.5.0] — 2026-11-03
+
+Store readiness (Google Play via TWA, Microsoft Store via MSIX) — the PWA side. **Nothing was submitted, built into an APK/AAB/MSIX, signed or tested on a device**; see `docs/store/README.md` for what is done and what only the owner can do.
+
+### Added
+
+- **`privacy.html`** — bilingual (AR/EN) privacy policy that both stores require as a public URL; script-free, precached, linked from Settings (new tab, `noopener`). Its factual claims (no cookies, no network calls, no external URLs) are checked against the shipped code by `npm run store:check`.
+- **Store screenshots** generated from the real app by `tools/make-screenshots.js` (`npm run screenshots`): wide 1280×720 ×2 (dark/light) and narrow 540×960 (9:16) ×2, declared in `manifest.json` (`screenshots` with `form_factor`).
+- **`npm run store:check`** (`tools/store-check.js`, zero dependencies, part of `npm test`): manifest completeness, declared vs actual PNG sizes of icons and screenshots, maskable icons, 9:16 narrow shots, service-worker registration and precache, privacy page, hosting-header configs, no placeholder `assetlinks.json`, and "shipped code makes no network calls / sets no cookies" (verified to fail when a `fetch` or `document.cookie` is injected).
+- **Hosting configs:** `vercel.json` and `_headers` (nosniff, no-referrer, Permissions-Policy, HSTS, a single `frame-ancestors 'self'`, no-cache for the service worker and manifest, correct manifest MIME, `assetlinks.json` MIME). Structure only is verified; **never exercised on a live host**.
+- **`docs/store/`:** `README.md` (strategy, done vs owner-only tasks, order of work, hosting), `ANDROID.md` (PWABuilder/Bubblewrap, Digital Asset Links incl. the Play-App-Signing fingerprint pitfall, Play Console checklist, real-device test checklist), `WINDOWS.md` (Partner Center identity, PWABuilder MSIX, sideload test checklist), `LISTING.md` (AR/EN listing text that deliberately lists what is *not* included, draft questionnaire answers). Vendor facts are marked "verify".
+- `manifest.json`: `prefer_related_applications: false`.
+
+### Fixed
+
+- **The explorer highlighted the wrong file after switching tabs** (found while reviewing the generated screenshots: `app.js` was open, `index.html` was highlighted). `FILE_LIST` did not listen to `active:change`; it only re-rendered on file changes. Regression test (red on the old `js/list.js`): exactly one row is highlighted and `aria-selected` follows tab clicks, create and Alt+Arrow.
+
+### Changed
+
+- `docs/security/HOSTING_HEADERS.md`: `frame-ancestors 'self'` as a single global rule (explains why `'none'` or two competing rules would block the preview in production).
+
+### Tests
+
+- E2E **50** (+2: active-row highlight, privacy page). Unit 44 (core 32, preview 12), static 19, `store:check` 53 checks.
+
+### Meta
+
+- Version 1.5.0 (`KC.version`, SW cache `kingcode-v1.5.0`, `package.json`); `privacy.html` added to the precache list.
+
 ## [1.4.2] — 2026-11-03
 
 Cross-browser verification: the E2E suite now runs on **Chromium, Firefox and WebKit** in CI (`KC_BROWSER`, matrix job `e2e`).
