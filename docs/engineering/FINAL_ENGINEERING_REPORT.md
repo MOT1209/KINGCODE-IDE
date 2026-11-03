@@ -94,7 +94,7 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 
 - PR #1 (Phase 0–1): `verify` and `e2e` green on the merged head `f4f79ee`; merged as `b87083a`. A first push failed because I broke the workflow YAML (unquoted colon); fixed before merge.
 - PR #2 (Phases 2–3 steps 1–2): `verify` and `e2e` green on head `0a2e75f`; merged as `6642011`.
-- PR #3 first run (head `33f56f3`): `verify` ✅, `lint` ✅ (new job, passed first time), `e2e` ❌ 45/46 — `A-01 legacy migration`. Root cause: a partial crash journal written at page exit was merged into the migrated legacy project (real bug, F-15), exposed by timing that differs on the CI runner. Fixed in 1.4.1; the result of the CI run on the fixed head is recorded in `IMPLEMENTATION_PROGRESS.md`.
+- PR #3 first run (head `33f56f3`): `verify` ✅, `lint` ✅ (new job, passed first time), `e2e` ❌ 45/46 — `A-01 legacy migration`. Root cause: a partial crash journal written at page exit was merged into the migrated legacy project (real bug, F-15), exposed by timing that differs on the CI runner. Fixed in 1.4.1; **CI on the fixed head `6b229f8`: `verify` ✅, `lint` ✅, `e2e` ✅ (47/47)** — GitHub Actions run 41637991223. Later documentation-only commits re-trigger CI and are not separately recorded here.
 
 ## 11. Files changed (vs `45f7284`)
 

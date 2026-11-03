@@ -16,7 +16,7 @@ _Shared between agents (OpenCode / Claude Code). Update at every phase boundary.
 | 7 — Testing | complete (19 static, 43 unit, 47 E2E, ESLint, 3 CI jobs) | 1.0.7–1.4.1 | `tools/` |
 | 8 — Platform strategy | complete (plan only) | — | `docs/architecture/MULTI_PLATFORM_STRATEGY.md` |
 | 9 — Documentation | complete | — | README, CONTRIBUTING, SECURITY, ADRs |
-| 10 — Final verification | local verification complete; CI on PR #3: first run found F-15 (fixed in 1.4.1); see below | 1.4.1 | `FINAL_ENGINEERING_REPORT.md` |
+| 10 — Final verification | complete; CI on PR #3 green on `6b229f8` after the F-15 fix (see CI status) | 1.4.1 | `FINAL_ENGINEERING_REPORT.md` |
 
 ## Current state
 
@@ -41,7 +41,7 @@ F-01…F-09, **F-14** (editor showed the old document after import), F-10…F-13
 ## CI status
 
 - PR #1 head `f4f79ee`: `verify` + `e2e` success. PR #2 head `0a2e75f`: `verify` + `e2e` success.
-- PR #3 head `33f56f3`: `verify` ✅ `lint` ✅ `e2e` ❌ (45/46: legacy-migration test; real bug F-15 — partial crash journal merged into a migrated project; local runs had passed because the race did not occur). Fixed in 1.4.1; CI result for the fixed head: pending at the time of writing.
+- PR #3 head `33f56f3`: `verify` ✅ `lint` ✅ `e2e` ❌ (45/46: legacy-migration test; real bug F-15 — partial crash journal merged into a migrated project; local runs had passed because the race did not occur). Fixed in 1.4.1. **PR #3 head `6b229f8` (v1.4.1): `verify` ✅ `lint` ✅ `e2e` ✅ (47/47) on GitHub Actions** (run 41637991223). Documentation-only commits after it re-trigger CI; those runs are not recorded here.
 
 ## Remaining problems / limitations
 
