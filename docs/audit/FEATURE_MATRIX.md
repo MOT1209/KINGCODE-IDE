@@ -1,3 +1,5 @@
+> **SUPERSEDED (historical).** This document was written against v1.0.3 and is largely out of date. The verified, current audit is `docs/audit/REPOSITORY_AUDIT.md`, `SECURITY_AUDIT.md`, `ARCHITECTURE_AUDIT.md`, `TESTING_AUDIT.md`, `IMPROVEMENT_ROADMAP.md`; the outcome is in `docs/engineering/FINAL_ENGINEERING_REPORT.md`. Kept only as history.
+
 # FEATURE MATRIX — KINGCODE IDE
 
 ## Legend
