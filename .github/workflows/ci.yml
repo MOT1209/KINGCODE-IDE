@@ -40,5 +40,5 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: E2E (real Chromium: workflows + regression + security)
+      - name: "E2E (real Chromium - workflows, regression, security)"
         run: npm run test:e2e
