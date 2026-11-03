@@ -11,9 +11,14 @@ const os = require('os');
 const { spawn } = require('child_process');
 const net = require('net');
 
-let chromium;
-try { ({ chromium } = require('playwright')); }
-catch (e) { console.error('playwright غير مثبّت: شغّل `npm i` ثم `npx playwright install chromium`'); process.exit(2); }
+/* المتصفح: KC_BROWSER=chromium (افتراضي) | firefox | webkit */
+const BROWSER_NAME = process.env.KC_BROWSER || 'chromium';
+let engine;
+try {
+  const pw = require('playwright');
+  engine = pw[BROWSER_NAME];
+  if (!engine) { console.error('KC_BROWSER غير معروف: ' + BROWSER_NAME + ' (chromium | firefox | webkit)'); process.exit(2); }
+} catch (e) { console.error('playwright غير مثبّت: شغّل `npm i` ثم `npx playwright install ' + BROWSER_NAME + '`'); process.exit(2); }
 
 const ROOT = path.join(__dirname, '..');
 const results = [];
@@ -51,7 +56,7 @@ function copyApp(dest) {
 }
 
 async function test(name, fn, browser, base, opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, hasTouch: !!opts.touch, isMobile: !!opts.mobile, acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, hasTouch: !!opts.touch, ...(BROWSER_NAME === 'firefox' ? {} : { isMobile: !!opts.mobile }), acceptDownloads: true }); /* Firefox لا يدعم isMobile */
   if (opts.init) await ctx.addInitScript(opts.init);
   const page = await ctx.newPage();
   const pageErrors = [];
@@ -90,7 +95,8 @@ async function importJson(page, obj) {
   const port = await freePort();
   const server = await startServer(port);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch();
+  console.log('Browser: ' + BROWSER_NAME);
+  const browser = await engine.launch();
   try {
     /* ---- سير العمل الأساسي ---- */
     await test('WF: launch + default project + edit + reload keeps saved state', async ({ page }) => {
