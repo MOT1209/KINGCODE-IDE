@@ -198,6 +198,20 @@ const UI = {
     U.$('#btnExport')?.addEventListener('click', () => FILES.exportProject());
     U.$('#btnImport')?.addEventListener('click', () => FILES.importProject());
 
+    /* أزرار معرَّفة بـ data-action (بديل onclick المضمَّن — يسمح بسياسة CSP بلا 'unsafe-inline' للسكربت) */
+    const ACTIONS = {
+      'files.new': () => FILES.newFile(),
+      'files.exportHTML': () => FILES.exportProjectHTML(),
+      'preview.refresh': () => PREVIEW.refresh(),
+      'ui.togglePreview': () => UI.togglePreview(),
+      'modal.close': el => UI.closeModal(el.dataset.modal)
+    };
+    document.addEventListener('click', e => {
+      const el = e.target.closest && e.target.closest('[data-action]');
+      const fn = el && ACTIONS[el.dataset.action];
+      if (fn) fn(el);
+    });
+
     /* أزرار نوافذ التأكيد والإدخال */
     U.$('#prompt-ok')?.addEventListener('click', () => UI.submitPrompt());
     U.$('#prompt-cancel')?.addEventListener('click', () => UI.cancelPrompt());

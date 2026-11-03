@@ -19,7 +19,7 @@ What the 16 checks cover: dev-server behavior (malformed URL, traversal, CORS, M
 
 | ID | Gap | Severity | Consequence |
 |---|---|---|---|
-| T-01 | **Zero tests execute application code.** State, files, import/export, tabs, preview, SW are untested in CI. | High | Every defect in REPOSITORY_AUDIT (F-01…F-08) passed the green suite. |
+| T-01 | **STATUS: addressed — 20 Chromium E2E tests (1.0.7–1.0.9) + 23 `node:test` unit tests (1.0.9).** **Zero tests execute application code.** State, files, import/export, tabs, preview, SW are untested in CI. | High | Every defect in REPOSITORY_AUDIT (F-01…F-08) passed the green suite. |
 | T-02 | CSP/sandbox checks are substring greps, not behavior. | Medium | A broken policy would still pass; real behavior (blocked parent access) only verified by my manual probes. |
 | T-03 | Test coverage is dev-server-centric, but the server is a dev tool, not the product. | Medium | Effort skew. |
 | T-04 | No persistence/quota/reload tests. | High | F-01, F-02, F-03 undetected. |

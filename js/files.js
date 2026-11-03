@@ -16,62 +16,43 @@ const FILES = {
     return n;
   },
 
-  _uniqueName(baseName) {
-    if (!STATE.fileByName(baseName)) return baseName;
-    const ext = KC.extOf(baseName);
-    const stem = ext ? baseName.slice(0, -(ext.length + 1)) : baseName;
-    let i = 2;
-    let cand;
-    do { cand = stem + '-' + i + (ext ? '.' + ext : ''); i++; }
-    while (STATE.fileByName(cand) && i < 10000);
-    return cand;
-  },
+  /* ---------- الإمداد الأساسي (الواجهة فقط؛ الثوابت في STATE) ---------- */
 
-  /* ---------- الإمداد الأساسي ---------- */
+  REASONS: {
+    invalid: ['اسم الملف غير صالح ✋', 'warn'],
+    limit: ['بلغت الحد الأقصى من الملفات (' + KC.limits.maxFiles + ') ⚠️', 'warn'],
+    duplicate: ['يوجد ملف بنفس الاسم 📛', 'warn']
+  },
 
   create(name, content, { silent = false } = {}) {
     name = this._reservedFor(name);
-    if (!name) { UI.toast('اسم الملف غير صالح ✋', 'warn'); return null; }
-    if (STATE.files().length >= KC.limits.maxFiles) {
-      UI.toast('بلغت الحد الأقصى من الملفات (' + KC.limits.maxFiles + ') ⚠️', 'warn');
-      return null;
-    }
-    if (STATE.fileByName(name)) { UI.toast('يوجد ملف بنفس الاسم «' + name + '» 📛', 'warn'); return null; }
-
     if (content == null) {
       const tpl = KC.templateFor(name);
       content = tpl ? tpl.content : '';
     }
-
-    const f = { id: U.uid(), name, content, updatedAt: Date.now() };
-    STATE.data.files.push(f);
-    STATE.data.tabs.push(f.id);
-    STATE.persist();
+    const r = STATE.addFile(name, content);
+    if (!r.ok) { const m = this.REASONS[r.reason]; UI.toast(m[0], m[1]); return null; }
+    const f = r.file;
     STATE.setActive(f.id);
     TABS.render();
     FILE_LIST.render();
-    if (!silent) UI.toast('تم إنشاء «' + name + '» ✨');
+    if (!silent) UI.toast('تم إنشاء «' + f.name + '» ✨');
     STATE.emit('files:change', null);
     return f;
   },
 
   rename(id, newName) {
-    const f = STATE.file(id);
-    if (!f) return;
-    newName = this._reservedFor(newName);
-    if (!newName) { UI.toast('الاسم غير صالح ✋', 'warn'); return; }
-    if (newName === f.name) return;
-    if (STATE.fileByName(newName)) { UI.toast('الاسم محجوز لملف آخر 📛', 'warn'); return; }
-
-    const old = f.name;
-    f.name = newName;
-    f.updatedAt = Date.now();
-    STATE.persist();
+    const r = STATE.renameFile(id, this._reservedFor(newName));
+    if (!r.ok) {
+      if (r.reason === 'duplicate') UI.toast('الاسم محجوز لملف آخر 📛', 'warn');
+      else if (r.reason === 'invalid') UI.toast('الاسم غير صالح ✋', 'warn');
+      return;
+    }
     FILE_LIST.render();
     TABS.render();
     PREVIEW.schedule(true);
     UI.updateStatusFile();
-    UI.toast('تمت إعادة التسمية: ' + old + ' ← ' + newName);
+    UI.toast('تمت إعادة التسمية: ' + r.old + ' ← ' + r.file.name);
     STATE.emit('file:renamed', id);
   },
 
@@ -89,23 +70,13 @@ const FILES = {
       okLabel: 'حذف نهائي'
     }, ok => {
       if (!ok) return;
-      const idx = STATE.data.files.indexOf(f);
-      STATE.data.files.splice(idx, 1);
-      STATE.data.tabs = STATE.data.tabs.filter(t => t !== id);
-      STATE.markDirty(id, false);
-
-      if (STATE.data.activeId === id) {
-        STATE.data.activeId = STATE.data.tabs[0] || (STATE.data.files[0] && STATE.data.files[0].id) || null;
-        if (STATE.data.activeId && !STATE.data.tabs.includes(STATE.data.activeId)) {
-          STATE.data.tabs.push(STATE.data.activeId);
-        }
-      }
-      STATE.persist();
+      const r = STATE.removeFile(id);
+      if (!r.ok) return;
       /* تنظيف Doc من الذاكرة عند حذف الملف (منع memory leak) */
       if (EDITOR.docs.has(id)) EDITOR.docs.delete(id);
       FILE_LIST.render();
       TABS.render();
-      if (STATE.data.activeId) { EDITOR.open(STATE.data.activeId); }
+      if (r.activeId) { EDITOR.open(r.activeId); }
       else { EDITOR._last = null; EDITOR.cm.swapDoc(CodeMirror.Doc('', 'text/plain')); }
       PREVIEW.schedule(true);
       UI.updateStatusFile();
@@ -119,7 +90,7 @@ const FILES = {
     if (!f) return;
     const ext = KC.extOf(f.name);
     const stem = ext ? f.name.slice(0, -(ext.length + 1)) : f.name;
-    const name = this._uniqueName(stem + ' copy' + (ext ? '.' + ext : ''));
+    const name = STATE.uniqueName(stem + ' copy' + (ext ? '.' + ext : ''));
     return this.create(name, f.content);
   },
 
@@ -194,15 +165,12 @@ const FILES = {
 
   /** يطبّق ملفات مشروع جديد (نتيجة U.sanitizeFiles) بعد التنقية والتأكيد — مستخرج من importProject الأصلية */
   _applyImported(files, note) {
-    STATE.data.files = files;
-    STATE.data.tabs = [files[0].id];
-    STATE.data.activeId = files[0].id;
-    STATE.clearDirty();
-    STATE.persist();
+    STATE.replaceProject(files);
     EDITOR.docs.clear();
     FILE_LIST.render();
     TABS.render();
-    STATE.setActive(files[0].id);
+    /* activeId تغيّر داخل replaceProject (setActive كان سيتجاهله): نبثّ الحدث ليفتح المحرر الملف الجديد */
+    STATE.emit('active:change', STATE.data.activeId);
     PREVIEW.schedule(true);
     UI.toast(note || ('تم استيراد ' + files.length + ' ملف 📥'));
     STATE.emit('files:change', null);
@@ -273,15 +241,13 @@ const FILES = {
       let n = 0, skipped = 0;
       for (const file of list) {
         try {
-          const name = this._uniqueName(this._reservedFor(file.name));
           const content = await U.readText(file);
-          if (STATE.files().length >= KC.limits.maxFiles) { skipped++; continue; }
-          STATE.data.files.push({ id: U.uid(), name, content, updatedAt: Date.now() });
-          n++;
+          if (content.length > KC.limits.maxFileChars) { skipped++; continue; }
+          const r = STATE.addFile(STATE.uniqueName(this._reservedFor(file.name)), content, { tab: false });
+          if (r.ok) n++; else skipped++;
         } catch (e) { skipped++; }
       }
       if (n) {
-        STATE.persist();
         FILE_LIST.render();
         PREVIEW.schedule(true);
         UI.toast('استوردنا ' + n + ' ملف' + (skipped ? ' (تم إسقاط ' + skipped + ')' : '') + ' 📥');

@@ -3,6 +3,49 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.0.9] — 2026-11-03
+
+Phase 3 (architecture), steps 1–2 of `docs/audit/ARCHITECTURE_AUDIT.md` §4: one write path for project files and a pure, testable preview builder. Findings: A-02, A-05, T-01.
+
+### Fixed
+
+- **F-14 — after import or backup restore the editor kept showing the OLD document (data corruption risk).** `_applyImported` set `activeId` itself and then called `setActive`, which returns early for an unchanged id, so the editor, status bar and tabs never switched; the next keystroke wrote the old document's text into the newly imported file. `STATE.replaceProject` + an explicit `active:change` now open the new project. Regression test `A-02` in `tools/e2e.js` (verified red on the previous code, green now).
+- Tab limit (`tabsMax`) is now enforced when creating files and never evicts the active tab (F-12).
+- Preview fallback documents: a lone `.js` file is now actually executed (it was rendered as page text), `</style>` / `</script>` inside such files can no longer break out of the wrapper, and `index.html` is preferred over other HTML files when the active file is not HTML.
+
+### Changed
+
+- **Single write path (A-02):** `STATE.addFile / renameFile / removeFile / replaceProject / uniqueName` own every invariant (valid and unique names, `maxFiles`, tab and active-file consistency). `FILES` (js/files.js) is now only the UI layer (prompts, toasts, rendering) and no longer mutates `STATE.data.files` directly.
+- **Pure preview builder (A-05):** document building moved from `js/preview.js` to `js/preview-builder.js` (`PreviewBuilder.build(files, activeId, opts)`): no DOM, no globals except `KC`/`U`; `PREVIEW` keeps the iframe, handshake and console.
+
+### Tests
+
+- New zero-dependency unit suites (`node:test`): `tools/unit/core.test.js` (15) and `tools/unit/preview.test.js` (8) — sanitizing, write path, persistence failure/flush/auto-save snapshot, hydrate, preview building and breakout cases. `npm test` now runs smoke + unit; CI syntax gate covers `tools/unit/`.
+- `tools/e2e.js`: +1 test (A-02) → 20.
+
+### Meta
+
+- Version 1.0.9 (`KC.version`, SW cache `kingcode-v1.0.9`, `package.json`); `js/preview-builder.js` added to the precache list.
+
+## [1.0.8] — 2026-11-03
+
+Phase 2 of the audit remediation (security hardening). Findings: S-02, S-03, S-06 in `docs/audit/SECURITY_AUDIT.md`.
+
+### Security
+
+- **S-03 — shell CSP no longer allows `'unsafe-inline'` scripts.** The 8 inline `onclick` handlers were replaced by `data-action` attributes handled by one delegated listener in `js/ui.js`; the `window.files/ui/preview/tabs/editor/state` aliases that existed only for those handlers were removed (`window.kc` stays for tests). CSP also gained `object-src 'none'`, `base-uri 'none'`, `form-action 'none'` and `frame-src 'self'`.
+- **S-03 — preview now runs in its own page.** The preview iframe loads `sandbox.html` (opaque origin, still `sandbox="allow-scripts allow-modals"`) with its own CSP (`default-src 'none'`, inline script/style only, data:/blob: images) and receives the generated document by `postMessage` after a nonce handshake. Previously the `srcdoc` preview inherited the shell policy, which forced the shell to keep `'unsafe-inline'`. Preview network policy is unchanged: no fetch/XHR/WebSocket/remote resources.
+- **S-02 — console bridge hardened.** `level` is allow-listed (`log/info/warn/error/debug`), at most 20 parts per message and 2,000 chars per part; forged or oversized messages cannot inject class names or markup.
+- **S-06 — `referrer: no-referrer`** (meta + iframe attribute); host header guidance in `docs/security/HOSTING_HEADERS.md`.
+
+### Tests
+
+- `tools/e2e.js`: +4 tests (shell blocks inline script, preview scripts still run offline, bridge caps, sandbox page policy). `tools/ci-smoke.js`: +3 static guards.
+
+### Changed
+
+- Version 1.0.8 (`KC.version`, SW cache `kingcode-v1.0.8`, `package.json`); `sandbox.html` added to the precache list.
+
 ## [1.0.7] — 2026-11-03
 
 Phase 1 of the audit remediation (data integrity). Each item maps to `docs/audit/REPOSITORY_AUDIT.md`; each has an E2E regression test in `tools/e2e.js`.

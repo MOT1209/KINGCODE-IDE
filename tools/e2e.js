@@ -130,6 +130,17 @@ async function importJson(page, obj) {
       assert((await page.evaluate(() => kc.STATE.files().length)) === 3, 'restore');
     }, browser, base);
 
+    await test('A-02: after import/restore the editor, tabs and status bar show the new project', async ({ page }) => {
+      await importJson(page, { 'zeta.txt': 'ZETA-CONTENT', 'beta.txt': 'B' });
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(500);
+      assert((await page.evaluate(() => kc.EDITOR.cm.getValue())) === 'ZETA-CONTENT', 'editor still shows old document');
+      assert((await page.textContent('#statusFile')) === 'zeta.txt', 'status bar stale: ' + (await page.textContent('#statusFile')));
+      assert((await page.$$eval('.tab', n => n.length)) === 1, 'tabs not reset');
+      await page.evaluate(() => Commands.run('files.restoreBackup'));
+      await page.waitForSelector('#confirm-modal', { state: 'visible' }); await page.click('#confirm-ok'); await sleep(500);
+      assert(/<html|<!DOCTYPE/i.test(await page.evaluate(() => kc.EDITOR.cm.getValue())), 'editor not showing restored index.html');
+    }, browser, base);
+
     /* ---- F-03: تفريغ الحفظ عند المغادرة ---- */
     await test('F-03: edit then immediate reload does not lose the edit', async ({ page }) => {
       await typeAll(page, '<h1>FAST</h1>');
@@ -209,6 +220,43 @@ async function importJson(page, obj) {
       assert(/P:blocked/.test(out) && /L:blocked/.test(out), 'sandbox leak: ' + out);
       await page.evaluate(() => window.postMessage({ __kingcode: true, type: 'console', level: 'error', parts: ['FORGED'] }, '*')); await sleep(200);
       assert(!(await page.textContent('#console-output')).includes('FORGED'), 'forged message accepted');
+    }, browser, base);
+
+    await test('S-03: shell blocks inline script execution (no unsafe-inline); buttons work via data-action', async ({ page }) => {
+      const csp = await page.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]').content);
+      const scriptSrc = (csp.match(/script-src([^;]*)/) || [])[1] || '';
+      assert(!/unsafe-inline|unsafe-eval/.test(scriptSrc), 'script-src weak: ' + scriptSrc);
+      await page.evaluate(() => { const s = document.createElement('script'); s.textContent = 'window.__inl=1'; document.body.appendChild(s); });
+      assert(!(await page.evaluate(() => !!window.__inl)), 'inline script executed in shell');
+      assert((await page.evaluate(() => document.querySelectorAll('[onclick],[onload],[onerror]').length)) === 0, 'inline handler attributes remain');
+      await page.evaluate(() => UI.openSettings());
+      await page.click('#settings-modal [data-action="modal.close"][aria-label]');
+      assert(!(await page.evaluate(() => UI.isModalOpen('settings-modal'))), 'modal.close action broken');
+      await page.click('[data-action="preview.refresh"]');
+    }, browser, base);
+
+    await test('S-03: preview still runs inline scripts but has no network/remote resources', async ({ page }) => {
+      await typeAll(page, '<img src="https://example.com/x.png"><script>console.log("inline-ok");fetch("https://example.com").then(()=>console.log("NET-OK")).catch(()=>console.log("net-blocked"));</script>');
+      await page.waitForFunction(() => /net-blocked/.test(document.querySelector('#console-output').textContent), null, { timeout: 5000 });
+      const out = await page.textContent('#console-output');
+      assert(/inline-ok/.test(out) && !/NET-OK/.test(out), 'unexpected: ' + out);
+    }, browser, base);
+
+    await test('S-02: console bridge input is allow-listed and size-capped', async ({ page }) => {
+      await typeAll(page, '<script>var big=[];for(var i=0;i<500;i++)big.push("x".repeat(10000));parent.postMessage({__kingcode:true,type:"console",level:"x\\"><img src=x>",parts:big},"*");parent.postMessage({__kingcode:true,type:"console",level:"error",parts:"scalar"},"*");</script>');
+      await page.waitForFunction(() => /scalar/.test(document.querySelector('#console-output').textContent), null, { timeout: 5000 });
+      const rows = await page.$$eval('#console-output .console-item', n => n.map(r => ({ cls: r.className, len: r.textContent.length })));
+      assert(rows.every(r => /^console-item lvl-(log|info|warn|error|debug|system)$/.test(r.cls)), 'bad class: ' + JSON.stringify(rows.map(r => r.cls)));
+      assert(rows.every(r => r.len <= 20 * 2000 + 200), 'oversized row');
+      assert((await page.$$('#console-output img')).length === 0, 'markup injected');
+    }, browser, base);
+
+    await test('S-03: preview frame loads sandbox.html (opaque origin) with its own strict CSP', async ({ page }) => {
+      const info = await page.evaluate(() => { const f = document.getElementById('preview-frame'); return { src: f.getAttribute('src'), sandbox: f.getAttribute('sandbox') }; });
+      assert(/^sandbox\.html\?n=/.test(info.src), 'src: ' + info.src);
+      assert(info.sandbox === 'allow-scripts allow-modals', 'sandbox attr: ' + info.sandbox);
+      const html = fs.readFileSync(path.join(ROOT, 'sandbox.html'), 'utf8');
+      assert(/default-src 'none'/.test(html) && !/connect-src/.test(html), 'sandbox CSP not strict');
     }, browser, base);
 
     await test('SEC: hostile file name cannot inject markup into the app shell', async ({ page }) => {

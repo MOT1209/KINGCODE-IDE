@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<!-- صفحة تنفيذ المعاينة: تُحمَّل داخل iframe sandbox (أصل معتّم، بلا allow-same-origin) بسياستها الخاصة.
+     كود المستخدم يعمل هنا (inline مسموح) لكن بلا أي وصول للشبكة: لا fetch/XHR/WebSocket، لا صور/خطوط/سكربتات خارجية.
+     سياسة الصدفة (index.html) لا تحتاج 'unsafe-inline' للسكربت بفضل هذا الفصل. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>kingCode preview sandbox</title>
+<script>
+(function () {
+  var nonce = new URLSearchParams(location.search).get('n') || '';
+  addEventListener('message', function (e) {
+    var d = e.data;
+    /* يقبل فقط أمر العرض القادم من الصدفة الأم بنفس الـ nonce */
+    if (e.source !== parent || !d || d.__kingcode !== true || d.type !== 'render' || d.nonce !== nonce || typeof d.html !== 'string') return;
+    document.open(); document.write(d.html); document.close();
+  });
+  parent.postMessage({ __kingcode: true, type: 'sandbox-ready', nonce: nonce }, '*');
+})();
+</script>
+</head>
+<body></body>
+</html>
