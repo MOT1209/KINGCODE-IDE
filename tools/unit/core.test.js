@@ -333,6 +333,40 @@ test('journal newer than the last save is applied on load and edits survive; old
   assert.equal(store.has('kingcode:journal:v1'), false, 'stale journal should be removed');
 });
 
+test('partial journal: never merged into a legacy/migrated snapshot, never a project on its own; cleared', async () => {
+  const { run, store } = makeEnv();
+  await run('STORE.init()');
+  const partial = JSON.stringify({ t: 999, full: false, files: [{ id: 'j1', name: 'from-journal.js', content: 'J', updatedAt: 1 }], tabs: ['j1'], activeId: 'j1' });
+  store.set('kingcode:state:v1', JSON.stringify({ files: [{ id: 'a', name: 'legacy.md', content: 'L', updatedAt: 1 }], tabs: ['a'], activeId: 'a' }));
+  store.set('kingcode:journal:v1', partial);
+  const snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.deepEqual(snap.files.map(f => f.name), ['legacy.md'], 'partial journal leaked into the legacy snapshot');
+  assert.equal(store.has('kingcode:journal:v1'), false, 'journal not cleared');
+  store.delete('kingcode:state:v1');
+  store.set('kingcode:journal:v1', partial);
+  assert.equal(await run('STORE.load()'), null, 'a partial journal alone must not create a project');
+  assert.equal(store.has('kingcode:journal:v1'), false);
+  store.set('kingcode:journal:v1', partial);
+  const migrated = JSON.parse(run(`JSON.stringify(STORE._applyJournal({ files: [{ id: 'm', name: 'm.txt', content: '', updatedAt: 1 }], savedAt: 5, _migrated: true }))`));
+  assert.deepEqual(migrated.files.map(f => f.name), ['m.txt']);
+});
+
+test('full journal (first save / import pending at exit) is a complete project: used alone and over a migrated snapshot, but not when older than the last save', async () => {
+  const { run, store } = makeEnv();
+  await run('STORE.init()');
+  const full = (t, content) => JSON.stringify({ t, full: true, files: [{ id: 'f1', name: 'index.html', content, updatedAt: 1 }, { id: 'f2', name: 'b.css', content: 'b', updatedAt: 1 }], tabs: ['f1'], activeId: 'f1', folders: ['empty'] });
+  store.set('kingcode:journal:v1', full(500, 'FIRST-SAVE-EDIT'));
+  let snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.deepEqual(snap.files.map(f => f.name), ['index.html', 'b.css']);
+  assert.equal(snap.files[0].content, 'FIRST-SAVE-EDIT');
+  assert.deepEqual(snap.folders, ['empty']);
+  store.set('kingcode:state:v1', JSON.stringify({ files: [{ id: 'a', name: 'legacy.md', content: 'L', updatedAt: 1 }], savedAt: 100 }));
+  store.set('kingcode:journal:v1', full(50, 'STALE'));
+  snap = JSON.parse(await run('STORE.load().then(s => JSON.stringify(s))'));
+  assert.deepEqual(snap.files.map(f => f.name), ['legacy.md'], 'older full journal must not replace a newer save');
+  assert.equal(store.has('kingcode:journal:v1'), false);
+});
+
 test('journal entries with invalid shape are ignored', async () => {
   const { run, store } = makeEnv();
   await run('STORE.init()');

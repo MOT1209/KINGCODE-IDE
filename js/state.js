@@ -336,7 +336,7 @@ const STATE = {
     const ids = this._all ? this.data.files.map(f => f.id) : Array.from(this._changed);
     const snap = this._snapshot();
     const changedFiles = snap.files.filter(f => ids.includes(f.id));
-    STORE.saveSync(snap, changedFiles);
+    STORE.saveSync(snap, changedFiles, this._all);
     this.flush();
   },
 

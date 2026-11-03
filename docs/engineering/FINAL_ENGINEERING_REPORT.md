@@ -1,12 +1,12 @@
-# Final engineering report — KINGCODE IDE foundation (v1.0.6 → v1.4.0)
+# Final engineering report — KINGCODE IDE foundation (v1.0.6 → v1.4.1)
 
-_Baseline: commit `45f7284` (v1.0.6). Final: v1.4.0. Everything marked "verified" was run by me in this environment (Node v22, headless Chromium via Playwright, Linux container). Anything not verified is listed in §12._
+_Baseline: commit `45f7284` (v1.0.6). Final: v1.4.1. Everything marked "verified" was run by me in this environment (Node v22, headless Chromium via Playwright, Linux container). Anything not verified is listed in §12._
 
 ## 1. Executive summary
 
 The repository was a small, tidy vanilla-JS PWA whose earlier audit documents were largely stale (most listed bugs were already fixed). Verification against real browser behaviour found a different set of problems: **silent data loss** (imports truncated at 60 files, storage failures reported as "saved", edits lost on quick reloads, a fake "auto-save off"), **an editor that kept showing the old document after an import** (which could overwrite imported files), a service worker that reloaded the page and deleted other apps' caches, and **zero tests that executed application code**.
 
-Over four phases I fixed those defects with a regression test each, moved persistence to IndexedDB with differential writes, hardened the security model (no inline scripts in the shell, preview isolated in its own CSP page), introduced a single write path for project files, added folders, rebuilt the phone/tablet layouts, and replaced "16 dev-server checks" with **19 static guards + 41 unit tests + 46 real-browser E2E tests + ESLint** in CI. No runtime dependencies were added.
+Over four phases I fixed those defects with a regression test each, moved persistence to IndexedDB with differential writes, hardened the security model (no inline scripts in the shell, preview isolated in its own CSP page), introduced a single write path for project files, added folders, rebuilt the phone/tablet layouts, and replaced "16 dev-server checks" with **19 static guards + 43 unit tests + 47 real-browser E2E tests + ESLint** in CI. No runtime dependencies were added.
 
 Not done, by design or for lack of means: a real terminal, Git, AI, accounts, cloud sync, extensions (none existed; a plan is in `docs/architecture/MULTI_PLATFORM_STRATEGY.md`), the ES-modules migration (deliberately deferred, ADR-4), and any testing in Firefox/Safari/real phones.
 
@@ -32,6 +32,7 @@ Not done, by design or for lack of means: a real terminal, Git, AI, accounts, cl
 | F-09 | README said CDN assets work in preview; the inherited CSP blocked them | Medium | E2E |
 | **F-14** | **After import/restore the editor still showed the old document; the next keystroke overwrote the imported file** | **High** | E2E red on the old code |
 | F-10–F-13 | Update toast noise; unnamed buttons/inputs, Tab keyboard trap, `role=option` misuse; palette capped at 14 results; tab limit unenforced; cramped phone layout; tablet drawer open on first run; drawer overlay without a handler | Low–Medium | DOM/E2E |
+| **F-15** | **Crash journal could mix files into a project migrated from the old storage format** (found by the first GitHub CI run; local runs had passed 3×; reproduced deterministically, then fixed in 1.4.1 with unit + E2E regressions) | Medium | CI log → local reproduction |
 | — | **Alt+→/← inside the editor did nothing** (two handlers cancelled each other) | Low | E2E red on the old handler |
 | S-02/S-03/S-06 | Bridge `level` unrestricted and messages unbounded; shell needed `'unsafe-inline'` scripts because the preview inherited the CSP; no referrer policy | Low–Medium | Code + E2E |
 
@@ -39,7 +40,7 @@ Full evidence, reproduction steps and status: `docs/audit/*.md`. No Critical or 
 
 ## 4. Defects fixed
 
-All of the above except the documented limitations in §12. Each has a regression test; for F-14 and the Alt+Arrow bug I ran the new test against the previous code and confirmed it failed before the fix. Releases: **1.0.7** (data integrity), **1.0.8** (security), **1.0.9** (write path, preview builder, F-14), **1.1.0** (IndexedDB), **1.2.0** (folders, a11y), **1.3.0** (split, lint, PWA/editor tests), **1.4.0** (responsive). Details per version in `CHANGELOG.md`.
+All of the above except the documented limitations in §12. Each has a regression test; for F-14 and the Alt+Arrow bug I ran the new test against the previous code and confirmed it failed before the fix. Releases: **1.0.7** (data integrity), **1.0.8** (security), **1.0.9** (write path, preview builder, F-14), **1.1.0** (IndexedDB), **1.2.0** (folders, a11y), **1.3.0** (split, lint, PWA/editor tests), **1.4.0** (responsive), **1.4.1** (crash-journal rules). Details per version in `CHANGELOG.md`.
 
 ## 5. Security improvements (verified by tests)
 
@@ -65,7 +66,7 @@ Explorer tree with collapsible folders, filter box and keyboard model; per-devic
 
 Same scenario, original vs final, median of 5 (20 files × ~126 KB, 20 edits):
 
-| Metric | v1.0.6 | v1.4.0 |
+| Metric | v1.0.6 | v1.4.0 (measured; 1.4.1 only changes crash-journal rules) |
 |---|---|---|
 | Main thread blocked while editing (ms) | 1133 | 0 |
 | Data written per edit | 2,659,340 chars | 131,326 chars (≈ 20× less) |
@@ -79,10 +80,10 @@ Capacity: a 16 MB project persists and reloads (the old blob could not hold it).
 
 | Command | Result |
 |---|---|
-| `npm test` (static guards + unit) | static **19/19**, unit core **30/30**, unit preview **11/11** — all PASS |
+| `npm test` (static guards + unit) | static **19/19**, unit core **32/32**, unit preview **11/11** — all PASS |
 | `npx eslint .` | clean (0 errors, 0 warnings) |
 | `node --check` on `js/*.js tools/*.js tools/unit/*.js service-worker.js eslint.config.js` | all OK |
-| `npm run test:e2e` | **46/46 PASS** — three consecutive runs, all 46/46 (recorded in `IMPLEMENTATION_PROGRESS.md`) |
+| `npm run test:e2e` | **47/47 PASS** (see `IMPLEMENTATION_PROGRESS.md` for the run history; the first pull-request run on GitHub exposed one failure that local runs had not, described in §3 and §10) |
 | Reference/precache check | 52 `index.html` references, 59 precached assets, all manifest icons exist; nothing missing |
 | Secrets scan (regex over tracked non-vendor files) | no credentials; one fixture string (`/etc/passwd` in a traversal test) |
 | Accidental deletions vs `45f7284` | none (19 added, 24 modified, 0 deleted/renamed) |
@@ -93,7 +94,7 @@ E2E coverage: launch/create/edit/save/reload; import/export/backup/restore; tabs
 
 - PR #1 (Phase 0–1): `verify` and `e2e` green on the merged head `f4f79ee`; merged as `b87083a`. A first push failed because I broke the workflow YAML (unquoted colon); fixed before merge.
 - PR #2 (Phases 2–3 steps 1–2): `verify` and `e2e` green on head `0a2e75f`; merged as `6642011`.
-- Later work (v1.1.0–v1.4.0 + docs): **CI result for the final head is recorded in `IMPLEMENTATION_PROGRESS.md` once the pull request run finishes**; the new `lint` job has never run on GitHub before this PR, so a CI-specific failure (e.g. the dev-dependency install) is possible and would be fixed before merge.
+- PR #3 first run (head `33f56f3`): `verify` ✅, `lint` ✅ (new job, passed first time), `e2e` ❌ 45/46 — `A-01 legacy migration`. Root cause: a partial crash journal written at page exit was merged into the migrated legacy project (real bug, F-15), exposed by timing that differs on the CI runner. Fixed in 1.4.1; the result of the CI run on the fixed head is recorded in `IMPLEMENTATION_PROGRESS.md`.
 
 ## 11. Files changed (vs `45f7284`)
 

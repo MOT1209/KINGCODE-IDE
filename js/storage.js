@@ -159,10 +159,11 @@ const STORE = {
   },
 
   /** كتابة متزامنة عند مغادرة الصفحة: localStorage مباشرة؛ IDB عبر سجل طوارئ صغير (أفضل جهد) */
-  saveSync(snapshot, changedFiles) {
+  saveSync(snapshot, changedFiles, full = false) {
     if (this.kind === 'local') return this._saveLocal(snapshot);
     try {
-      const j = JSON.stringify({ t: Date.now(), files: changedFiles, tabs: snapshot.tabs, activeId: snapshot.activeId });
+      /* full=true: السجل يحوي كل ملفات المشروع (حفظ أول/استيراد) فيصلح مشروعًا كاملًا بذاته؛ وإلا فهو تغييرات جزئية */
+      const j = JSON.stringify({ t: Date.now(), full: !!full, files: changedFiles, tabs: snapshot.tabs, activeId: snapshot.activeId, folders: snapshot.folders || [] });
       if (j.length > this.JOURNAL_MAX_CHARS) return false;
       localStorage.setItem(this.JOURNAL_KEY, j);
       return true;
@@ -171,19 +172,34 @@ const STORE = {
 
   clearJournal() { try { localStorage.removeItem(this.JOURNAL_KEY); } catch (_) {} },
 
+  /**
+   * قواعد تطبيق سجل الطوارئ (كتبه pagehide عندما لم تكتمل كتابة IndexedDB):
+   *  - سجل كامل (full): هو كل المشروع؛ يُطبَّق كاستبدال إن كان أحدث من آخر حفظ (أو لا حفظ سابق) — حتى فوق لقطة مُرحَّلة.
+   *  - سجل جزئي: تغييرات فوق لقطة محفوظة بالصيغة الجديدة (لها savedAt) فقط؛ لا يُدمج في مشروع مُرحَّل ولا يصلح وحده مشروعًا.
+   * ما لا يُطبَّق يُمسح كي لا يتراكم أو يلوّث إقلاعًا لاحقًا.
+   */
   _applyJournal(snap) {
     let j;
     try { const raw = localStorage.getItem(this.JOURNAL_KEY); j = raw ? JSON.parse(raw) : null; } catch (_) { j = null; }
     if (!j || !Array.isArray(j.files) || !j.files.length) return snap;
-    const base = snap || { files: [] };
-    if (snap && snap.savedAt && j.t <= snap.savedAt) { this.clearJournal(); return snap; }
-    const files = (base.files || []).slice();
-    for (const jf of j.files) {
-      if (!jf || typeof jf.id !== 'string' || typeof jf.name !== 'string') continue;
+    const valid = j.files.filter(f => f && typeof f.id === 'string' && typeof f.name === 'string');
+    const savedAt = (snap && snap.savedAt) || 0;
+    if (!valid.length || j.t <= savedAt) { this.clearJournal(); return snap; }
+
+    if (j.full) {
+      return Object.assign({}, snap || {}, {
+        files: valid, tabs: Array.isArray(j.tabs) ? j.tabs : [], activeId: j.activeId || (valid[0] && valid[0].id),
+        folders: Array.isArray(j.folders) ? j.folders : ((snap && snap.folders) || []), _fromJournal: true
+      });
+    }
+    if (!snap || !snap.savedAt || snap._migrated) { this.clearJournal(); return snap; }
+
+    const files = (snap.files || []).slice();
+    for (const jf of valid) {
       const i = files.findIndex(f => f.id === jf.id);
       if (i >= 0) files[i] = Object.assign({}, files[i], jf); else files.push(jf);
     }
-    return Object.assign({}, base, { files, tabs: Array.isArray(j.tabs) ? j.tabs : base.tabs, activeId: j.activeId || base.activeId, _fromJournal: true });
+    return Object.assign({}, snap, { files, tabs: Array.isArray(j.tabs) ? j.tabs : snap.tabs, activeId: j.activeId || snap.activeId, _fromJournal: true });
   },
 
   /* ---------- نسخة ما قبل الاستيراد ---------- */

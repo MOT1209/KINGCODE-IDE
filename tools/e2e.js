@@ -217,6 +217,8 @@ async function importJson(page, obj) {
     }, browser, base);
 
     await test('A-01: legacy localStorage project is migrated into IndexedDB on first run', async ({ page, ctx, base }) => {
+      /* أنهِ أي حفظ معلّق للصفحة القديمة أولًا: وإلا يكتب pagehide سجل طوارئ لمشروعها (سباق ظهر في CI) فيتداخل مع الكتلة القديمة التي نحقنها هنا */
+      await page.evaluate(() => STATE.flush());
       const p2 = await ctx.newPage();
       await p2.goto(base + '/manifest.json');
       await p2.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('kingcode'); r.onsuccess = r.onerror = r.onblocked = () => res(); }));
@@ -228,6 +230,23 @@ async function importJson(page, obj) {
       assert((await page.evaluate(() => kc.EDITOR.cm.getValue())) === 'LEGACY-DATA', 'editor does not show migrated file');
       await reload(page);
       assert((await page.evaluate(() => STORE.kind)) === 'idb' && (await page.evaluate(() => kc.STATE.files()[0].content)) === 'LEGACY-DATA', 'not persisted in idb after migration');
+    }, browser, base);
+
+    await test('A-01: upgrading user edits immediately (first IndexedDB save still pending) and reloads: migrated project + edit survive', async ({ page, ctx, base }) => {
+      await page.evaluate(() => STATE.flush());
+      const p2 = await ctx.newPage();
+      await p2.goto(base + '/manifest.json');
+      await p2.evaluate(() => localStorage.setItem('kingcode:state:v1', JSON.stringify({ v: 1, files: [{ id: 'L1', name: 'old-a.md', content: 'OLD-A', updatedAt: 1 }, { id: 'L2', name: 'old-b.md', content: 'OLD-B', updatedAt: 1 }], tabs: ['L1'], activeId: 'L1', settings: {}, uiPrefs: {} })));
+      await p2.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('kingcode'); r.onsuccess = r.onerror = r.onblocked = () => res(); }));
+      await p2.close();
+      await page.evaluate(() => { STORE._db && STORE._db.close(); });
+      await reload(page); /* ترحيل: الحفظ الأول إلى IndexedDB ما زال معلّقًا (debounce) */
+      await typeAll(page, 'EDIT-DURING-FIRST-SAVE');
+      await reload(page); /* pagehide ⇒ سجل طوارئ كامل */
+      const names = await page.evaluate(() => kc.STATE.files().map(f => f.name).sort());
+      assert(names.join() === 'old-a.md,old-b.md', 'migrated project damaged: ' + names);
+      assert((await page.evaluate(() => kc.STATE.fileByName('old-a.md').content)) === 'EDIT-DURING-FIRST-SAVE', 'edit lost');
+      assert((await page.evaluate(() => kc.STATE.fileByName('old-b.md').content)) === 'OLD-B', 'untouched file damaged');
     }, browser, base);
 
     await test('A-01: crash journal newer than the last save is recovered on boot', async ({ page }) => {

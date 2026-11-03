@@ -13,14 +13,14 @@ _Shared between agents (OpenCode / Claude Code). Update at every phase boundary.
 | 4 — Core IDE | complete (folders, filter, path-aware preview, editor verification; terminal/Git confirmed absent) | 1.2.0–1.3.0 | CHANGELOG |
 | 5 — UI/UX | complete (per-device layouts, accessibility) | 1.2.0, 1.4.0 | CHANGELOG |
 | 6 — Performance | complete, measured | 1.1.0 | `docs/engineering/PERFORMANCE.md` |
-| 7 — Testing | complete (19 static, 41 unit, 46 E2E, ESLint, 3 CI jobs) | 1.0.7–1.4.0 | `tools/` |
+| 7 — Testing | complete (19 static, 43 unit, 47 E2E, ESLint, 3 CI jobs) | 1.0.7–1.4.1 | `tools/` |
 | 8 — Platform strategy | complete (plan only) | — | `docs/architecture/MULTI_PLATFORM_STRATEGY.md` |
 | 9 — Documentation | complete | — | README, CONTRIBUTING, SECURITY, ADRs |
-| 10 — Final verification | local verification complete; **CI on the final pull request: see below** | 1.4.0 | `FINAL_ENGINEERING_REPORT.md` |
+| 10 — Final verification | local verification complete; CI on PR #3: first run found F-15 (fixed in 1.4.1); see below | 1.4.1 | `FINAL_ENGINEERING_REPORT.md` |
 
 ## Current state
 
-Branch `claude/kingcode-ide-audit-modernize-a7ddks` carries v1.1.0 → v1.4.0 and the documentation; it is **not yet merged to `main`** (PR #3 pending the user's explicit merge request).
+Branch `claude/kingcode-ide-audit-modernize-a7ddks` carries v1.1.0 → v1.4.1 and the documentation; it is **not yet merged to `main`** (PR #3 pending the user's explicit merge request).
 
 ## Fixed defects
 
@@ -30,10 +30,10 @@ F-01…F-09, **F-14** (editor showed the old document after import), F-10…F-13
 
 | Command | Result |
 |---|---|
-| `npm test` | static 19/19, unit core 30/30, unit preview 11/11 — PASS |
+| `npm test` | static 19/19, unit core 32/32, unit preview 11/11 — PASS |
 | `npx eslint .` | clean |
 | `node --check` js/ tools/ tools/unit/ service-worker.js eslint.config.js | all OK |
-| `npm run test:e2e` | 46/46 PASS in each of **3 consecutive runs** |
+| `npm run test:e2e` | 46/46 in each of 3 consecutive local runs at v1.4.0; **47/47** after the 1.4.1 fix, in each of 2 local runs at the time of commit |
 | Reference check | 52 index.html references, 59 precached assets, manifest icons: nothing missing |
 | Secrets scan | no credentials (one `/etc/passwd` test fixture string) |
 | Deletions vs `45f7284` | none |
@@ -41,7 +41,7 @@ F-01…F-09, **F-14** (editor showed the old document after import), F-10…F-13
 ## CI status
 
 - PR #1 head `f4f79ee`: `verify` + `e2e` success. PR #2 head `0a2e75f`: `verify` + `e2e` success.
-- PR #3 (this work): result recorded in the pull request; the new `lint` job has not run on GitHub before it — see the PR checks.
+- PR #3 head `33f56f3`: `verify` ✅ `lint` ✅ `e2e` ❌ (45/46: legacy-migration test; real bug F-15 — partial crash journal merged into a migrated project; local runs had passed because the race did not occur). Fixed in 1.4.1; CI result for the fixed head: pending at the time of writing.
 
 ## Remaining problems / limitations
 

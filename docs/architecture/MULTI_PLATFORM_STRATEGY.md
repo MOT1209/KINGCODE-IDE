@@ -74,7 +74,7 @@ _Status: **plan only**. Nothing in this document is implemented. It describes ho
 
 | Phase | Deliverable | Prerequisites in this repo | Exit criteria |
 |---|---|---|---|
-| P0 *(done)* | Hardened PWA, tests, CI | — | 46 E2E, 41 unit, lint, CI green |
+| P0 *(done)* | Hardened PWA, tests, CI | — | 47 E2E, 43 unit, lint, CI green |
 | P1 | Stable public origin on a host that can send headers (see `docs/security/HOSTING_HEADERS.md`); `assetlinks.json` | none | Lighthouse PWA installable, headers verified |
 | P2 | **Android TWA** (Bubblewrap/PWABuilder) to a Play internal-testing track | P1 | Installs, offline works, update flow works on a device (**needs real devices/emulators — not testable here**) |
 | P3 | **Windows MSIX** from the PWA to the Store | P1 | Passes Store certification checks (**needs a Windows machine — not testable here**) |

@@ -3,6 +3,21 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [1.4.1] — 2026-11-03
+
+### Fixed
+
+- **Crash journal could corrupt a migrated project (found by CI, reproduced locally).** If a save was still pending when the page was reloaded, the exit handler wrote a crash journal of *changed files only*; on the next boot that partial journal was merged into the project migrated from the legacy `localStorage` blob (which has no `savedAt`), mixing unrelated files into it — and a partial journal found with no saved project at all would have become the whole project. Rules now: a journal marked `full` (written while *all* files were pending: first save, import, migration) is a complete project and is applied as a replacement when newer than the last save; a partial journal is applied only on top of a real new-format snapshot (`savedAt`, not migrated); anything else is discarded and cleared. Regression: unit tests (partial journal never leaks into legacy/migrated/absent snapshots; full journal is used alone but not when older than the last save) and E2E (an upgrading user who edits immediately and reloads keeps the migrated project plus the edit).
+- E2E `A-01 legacy migration` was timing-dependent in CI (passed in 3 local runs, failed on GitHub): it now finishes any pending save of the page it started from before swapping in the legacy blob, which is what a real upgrade looks like.
+
+### Tests
+
+- Unit 43 (core 32, preview 11), E2E **47** (+1).
+
+### Meta
+
+- Version 1.4.1 (`KC.version`, SW cache `kingcode-v1.4.1`, `package.json`).
+
 ## [1.4.0] — 2026-11-03
 
 Phase 5 (UI/UX): responsive layouts designed per device class instead of shrinking the desktop UI.

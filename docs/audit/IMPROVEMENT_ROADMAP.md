@@ -12,7 +12,7 @@ _Originally the proposal approved at the end of Phase 0 (2026-11-03). Updated at
 | 4 — Core IDE | Folders, filter, path-aware preview, editor features verified (search/replace, comments, settings, large files), Alt+Arrow fix; terminal/Git confirmed absent and documented | 1.2.0–1.3.0 |
 | 5 — UI/UX | Per-device layouts (phone single-pane + bottom nav, tablet drawer), accessibility fixes (names, roles, Tab trap, palette) | 1.2.0, 1.4.0 |
 | 6 — Performance | Measured before/after (`docs/engineering/PERFORMANCE.md`): 0 ms main-thread blocking vs 1133 ms, ≈ 20× less data per edit; startup within noise | 1.1.0 |
-| 7 — Testing | 19 static guards, 41 unit tests, 46 Chromium E2E tests (workflows, regressions, IndexedDB, folders, responsive, accessibility, security, real two-version SW update), ESLint, CI jobs `verify`/`lint`/`e2e` | 1.0.7–1.4.0 |
+| 7 — Testing | 19 static guards, 43 unit tests, 47 Chromium E2E tests (workflows, regressions, IndexedDB, folders, responsive, accessibility, security, real two-version SW update), ESLint, CI jobs `verify`/`lint`/`e2e` | 1.0.7–1.4.0 |
 | 8 — Platform strategy | `docs/architecture/MULTI_PLATFORM_STRATEGY.md` (plan only) | docs |
 | 9 — Documentation | README, CHANGELOG, CONTRIBUTING, SECURITY, ADRs, audit documents brought in line with the code | docs |
 

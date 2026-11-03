@@ -12,7 +12,7 @@ npm test             # static guards + unit tests — Node only, no install need
 npm install                                  # eslint, @eslint/js, globals, playwright
 npx playwright install chromium              # once, for the E2E suite
 npm run lint                                 # ESLint
-npm run test:e2e                             # 46 real-browser tests
+npm run test:e2e                             # 47 real-browser tests
 npm run perf -- <git-ref>                    # benchmark current code vs a git ref (see docs/engineering/PERFORMANCE.md)
 ```
 

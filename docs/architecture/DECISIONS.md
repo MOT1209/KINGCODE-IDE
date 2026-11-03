@@ -24,8 +24,8 @@ Short records of decisions that shape the codebase. Format: context → decision
 - **Context.** The brief asks for modular structure and the audit proposed native ES modules (`<script type="module">`, still no bundler) to remove global coupling and enable Node-native unit tests.
 - **Evaluation.** What modules would buy is already covered another way:
   - *CSP:* inline handlers are gone (v1.0.8); the shell has no `'unsafe-inline'` script.
-  - *Testability:* `tools/unit/env.js` loads the DOM-free files in a `vm` context; 41 unit tests run in Node.
-  - *Safety net:* ESLint with declared globals catches cross-file typos; 46 E2E tests cover behaviour.
+  - *Testability:* `tools/unit/env.js` loads the DOM-free files in a `vm` context; 43 unit tests run in Node.
+  - *Safety net:* ESLint with declared globals catches cross-file typos; 47 E2E tests cover behaviour.
   - *Cost/risk:* converting 14 interdependent files (cycles such as `UI`↔`FILES`↔`PALETTE`, load-order-dependent initialisation, a service-worker precache that must change in lockstep, `window.kc` used by tests) is a large mechanical rewrite whose benefit today is mostly aesthetic; module scripts are also deferred by default, which changes boot timing that several tests rely on.
 - **Decision.** Do not migrate in this effort. Keep the extracted pure modules (`STORE`, `PreviewBuilder`, state write path) free of DOM access so they can be converted first.
 - **Revisit when** (a) a packaging shell requires a bundler anyway, (b) code splitting or lazy-loaded extensions are needed, or (c) two or more contributors start colliding on globals. Then convert leaf modules first (`utils`, `storage`, `preview-builder`) behind the existing test suites.
