@@ -10,7 +10,7 @@ _Audited commit `fd445f2` (v1.5.0), 2026-11-03, plus the changes in this branch 
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
-| F-02 | Live preview fails offline (sandboxed iframe bypasses the service worker) | Medium (availability, not confidentiality) | **Open** — fix attempted, did not work, reverted |
+| F-02 | Live preview fails offline (sandboxed iframe bypasses the service worker) | Medium (availability, not confidentiality) | **Fixed in 1.5.1 for Chromium** (versioned URL + HTTP cache header); caveats below |
 | F-03 | CI workflow had default token permissions | Low | **Fixed** (this branch): `permissions: contents: read` in `.github/workflows/ci.yml` |
 | F-04 | 5 moderate `npm audit` advisories (`minimatch` ReDoS via ESLint, dev-only) | Low | **Fixed** (this branch): `overrides.minimatch ^11.0.4`; `npm audit` → 0; `eslint .` clean |
 | F-05 | SW caches every same-origin 200 navigation under its full URL (query variants add entries) | Low | **Open**, from code reading, not exercised |
@@ -29,7 +29,8 @@ Previously reported S-01…S-10 re-verified: see `docs/engineering/PHASE_0_AUDIT
 - Attempted fix: SW branch answering `*/sandbox.html` with `caches.match('sandbox.html', {ignoreSearch:true})` on network failure, with an E2E test. Test **failed with the fix applied** → change reverted; nothing shipped.
 - Impact: no confidentiality/integrity impact. The app promises offline use; edit/save/files work, preview and console do not.
 - Second attempt (also reverted): `preview.js` fetched `sandbox.html` (cache-served offline) and loaded it as a `data:` iframe document. Chromium made that document **inherit the shell's `script-src 'self'`**: the bootstrap inline script was blocked (console: "Executing inline script violates … 'script-src 'self''") and 7 E2E tests failed. Working around it would require weakening the shell CSP, which is not acceptable. `srcdoc`/`blob:` inherit the parent CSP for the same reason.
-- Remediation options (each needs its own test, none done): (a) load the sandbox with a fixed URL and pass the nonce by `postMessage` so an HTTP-cacheable/`Cache-Control` response can be reused (hosts must send a cacheable header for `/sandbox.html`); (b) ~~`data:`/`blob:`/`srcdoc` shell~~ — tried/ruled out (inherits parent CSP, see above); (c) accept and document. Not verified: Firefox/WebKit/installed mode.
+- **Fix shipped in 1.5.1 (option a):** `sandbox.html?v=<version>&s=0|1#<nonce>`, `Cache-Control: public, max-age=31536000, immutable` for `/sandbox.html`. `window.name` was tried for the nonce and rejected (cleared in opaque-origin frames); the fragment is not part of the HTTP cache key. E2E `OFFLINE-PREVIEW` fails on 1.5.0 and passes on 1.5.1 (Chromium 50→51/51). Residual: depends on the host sending the cache header (not verified on a live host; GitHub Pages' default is short), requires one prior online render, Firefox/WebKit only via CI, installed mode untested. Security properties unchanged: same sandbox attribute, same preview CSP, same nonce handshake (`S-03`, `SEC`, `S-02` pass).
+- Original remediation options (kept for the record) (each needs its own test, none done): (a) load the sandbox with a fixed URL and pass the nonce by `postMessage` so an HTTP-cacheable/`Cache-Control` response can be reused (hosts must send a cacheable header for `/sandbox.html`); (b) ~~`data:`/`blob:`/`srcdoc` shell~~ — tried/ruled out (inherits parent CSP, see above); (c) accept and document. Not verified: Firefox/WebKit/installed mode.
 
 ## 2. Control-by-control review
 

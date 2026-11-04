@@ -72,7 +72,11 @@ const PREVIEW = {
   _render(html) {
     this._nonce = U.uid();
     this._html = html;
-    this.frame.src = 'sandbox.html?n=' + encodeURIComponent(this._nonce);
+    /* رابط ثابت لكل نسخة (v) حتى تخدمه ذاكرة HTTP دون إنترنت — التنقّل من الإطار المعزول لا يمر عبر Service Worker.
+       يتناوب s بين 0 و1 كي يكون كل عرض تنقّلًا فعليًا إلى رابط مختلف عن الحالي (لا إعادة تحميل تتحقق من الشبكة).
+       الـ nonce يُمرَّر في fragment (لا يدخل مفتاح ذاكرة HTTP؛ window.name يُمسح في الإطار معتّم الأصل). */
+    this._flip = this._flip ? 0 : 1;
+    this.frame.src = 'sandbox.html?v=' + encodeURIComponent(String(KC.version).split(' ').pop()) + '&s=' + this._flip + '#' + encodeURIComponent(this._nonce);
   },
 
   /* بناء المستند منقول إلى js/preview-builder.js (دالة نقية قابلة للاختبار) */

@@ -33,7 +33,7 @@ Please describe the impact and reproduction steps **privately** to the maintaine
 - **Plaintext storage.** Project files are not encrypted at rest.
 - **Style policy.** `style-src 'unsafe-inline'` remains because the UI uses inline `style` attributes.
 - **Headers a static app cannot set.** `frame-ancestors`/`X-Frame-Options`, `Permissions-Policy`, HSTS must be set by the host (`docs/security/HOSTING_HEADERS.md`); GitHub Pages cannot set them.
-- **Offline preview.** The live preview (iframe sandboxed without `allow-same-origin`) does not load offline in Chromium because such navigations bypass the service worker (reproduced; `SECURITY_AUDIT.md` F-02). Editing and storage work offline.
+- **Offline preview.** The sandboxed preview iframe bypasses the service worker, so since 1.5.1 it relies on the HTTP cache: the host must send `Cache-Control: public, max-age=31536000, immutable` for `/sandbox.html` (set in `vercel.json`/`_headers`, **unverified on a live host**) and the preview must have rendered online once. Chromium verified; others via CI only (`SECURITY_AUDIT.md` F-02).
 - **Multi-tab.** Two tabs editing the same project are last-writer-wins.
 - **Browser coverage.** The security and storage E2E tests run in CI on Playwright's Chromium, Firefox and WebKit builds (Linux). That is not the same as real Safari on iOS/macOS, Android WebView or installed-app mode, which remain untested.
 - **CodeMirror 5** (vendored) is in maintenance mode; its exact version and advisory status were not independently verified.
