@@ -734,9 +734,20 @@ async function importJson(page, obj) {
       assert((await page.$$('#console-output img')).length === 0, 'markup injected');
     }, browser, base);
 
+    /* ---- F-02: المعاينة دون إنترنت (رابط مُنسَّخ ثابت يُخدم من ذاكرة HTTP) ---- */
+    await test('OFFLINE-PREVIEW: preview renders while offline after it was rendered online', async ({ page, ctx }) => {
+      await typeAll(page, '<h1 id="x">offline-ok</h1><script>console.log("off-log")</script>');
+      await sleep(900); await page.evaluate(() => kc.PREVIEW.refresh()); await sleep(900); /* يزور الرابطين s=0 وs=1 وهو متصل */
+      await ctx.setOffline(true);
+      await typeAll(page, '<h1 id="x">offline-ok2</h1><script>console.log("off-log2")</script>');
+      await page.evaluate(() => kc.PREVIEW.refresh());
+      await page.waitForFunction(() => /off-log2/.test(document.querySelector('#console-output').textContent), null, { timeout: 6000 });
+      await ctx.setOffline(false);
+    }, browser, base);
+
     await test('S-03: preview frame loads sandbox.html (opaque origin) with its own strict CSP', async ({ page }) => {
       const info = await page.evaluate(() => { const f = document.getElementById('preview-frame'); return { src: f.getAttribute('src'), sandbox: f.getAttribute('sandbox') }; });
-      assert(/^sandbox\.html\?n=/.test(info.src), 'src: ' + info.src);
+      assert(/^sandbox\.html\?v=[\d.]+&s=[01]#\w+$/.test(info.src), 'src: ' + info.src);
       assert(info.sandbox === 'allow-scripts allow-modals', 'sandbox attr: ' + info.sandbox);
       const html = fs.readFileSync(path.join(ROOT, 'sandbox.html'), 'utf8');
       assert(/default-src 'none'/.test(html) && !/connect-src/.test(html), 'sandbox CSP not strict');

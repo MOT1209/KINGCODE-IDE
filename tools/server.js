@@ -29,10 +29,10 @@ const MIME = {
   '.map': 'application/json'
 };
 
-function send(res, code, body, type) {
+function send(res, code, body, type, cache) {
   res.writeHead(code, {
     'Content-Type': type,
-    'Cache-Control': 'no-store'
+    'Cache-Control': cache || 'no-store'
     /* CB-07: حُذف Access-Control-Allow-Origin: '*' - خادم محلي لا يحتاج فتح CORS لأي أصل،
        والفتح العام يخوّل أي صفحة ويب خارجية قراءة ملفات الجهاز عبر هذا الخادم */
   });
@@ -64,6 +64,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const urlHasVersion = new URL(req.url, 'http://x').searchParams.has('v');
   fs.readFile(filePath, (err, data) => {
     if (err) {
       /* fallback: أي 404 للمسارات غير قياسية يعرض التطبيق (SPA-safe) */
@@ -82,7 +83,8 @@ const server = http.createServer((req, res) => {
     if (path.basename(filePath).toLowerCase() === 'manifest.json') {
       type = MIME['.webmanifest'];
     }
-    send(res, 200, data, type);
+    /* sandbox.html يُطلب برابط مُنسَّخ (?v=) فيُخزَّن طويلًا ليعمل إطار المعاينة دون إنترنت (انظر js/preview.js) */
+    send(res, 200, data, type, /(^|[\\/])sandbox\.html$/.test(filePath) && urlHasVersion ? 'public, max-age=31536000, immutable' : undefined);
   });
 });
 

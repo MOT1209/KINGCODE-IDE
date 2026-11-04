@@ -10,7 +10,8 @@
 <title>kingCode preview sandbox</title>
 <script>
 (function () {
-  var nonce = new URLSearchParams(location.search).get('n') || '';
+  /* الـ nonce يصل في fragment (#…) لا في query: الـ fragment ليس جزءًا من مفتاح ذاكرة HTTP فيبقى المورد قابلًا للخدمة دون إنترنت */
+  var nonce = decodeURIComponent(location.hash.slice(1));
   addEventListener('message', function (e) {
     var d = e.data;
     /* يقبل فقط أمر العرض القادم من الصدفة الأم بنفس الـ nonce */

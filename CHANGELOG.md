@@ -3,7 +3,14 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
-## [Unreleased]
+## [1.5.1] — 2026-11-04
+
+### Fixed
+
+- **Live preview did not load offline** (Chromium: an iframe sandboxed without `allow-same-origin` bypasses the service worker, so `sandbox.html?n=<nonce>` could not be served offline). The preview page is now requested at a **versioned, stable URL** (`sandbox.html?v=<version>&s=0|1#<nonce>`; the nonce moved to the URL fragment, which is not part of the HTTP cache key; `s` alternates so each render is a real navigation) and is served with `Cache-Control: public, max-age=31536000, immutable` (`vercel.json`, `_headers`, dev server), so the browser's HTTP cache answers it offline. E2E `OFFLINE-PREVIEW` is red on 1.5.0 and green now. Two earlier approaches (SW `ignoreSearch` handler; `data:` shell) were tried and rejected: the first does not run, the second inherits the shell CSP (`SECURITY_AUDIT.md` F-02).
+- Caveats: needs a host that sends the cache header (GitHub Pages does not); the preview must have been rendered online once (both `s` variants); Firefox/WebKit/installed mode not verified locally.
+
+### Security / tooling (no other application code changed)
 
 ### Security / tooling (no application code changed)
 

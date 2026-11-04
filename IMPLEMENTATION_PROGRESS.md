@@ -14,7 +14,7 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 | Files | Virtual project: files, nested folders, tabs, filter, import/export, backup/restore | Implemented | E2E `A-03:*`, `WF:*`, `F-01`, `F-04` |
 | Storage | IndexedDB (per-file records, differential writes), localStorage fallback, legacy migration, crash journal | Implemented | E2E `A-01:*`, unit |
 | Preview | Sandboxed live preview + console (no network by design) | Implemented (online) | E2E `SEC`, `S-02`, `S-03` |
-| Preview | Preview while offline | **Partially Implemented / defect** | see `SECURITY_AUDIT.md` F-02; reproduced |
+| Preview | Preview while offline | Implemented (Chromium; caveats) | E2E `OFFLINE-PREVIEW`; needs host cache header + one online render; see F-02 |
 | PWA | Manifest, icons, maskable icons, screenshots, shortcuts, service worker, explicit update flow | Implemented | `store:check` 53/53, E2E `T-05/F-07` |
 | PWA | Installed (standalone) mode behaviour on real devices | Not Implemented → untested | no device access |
 | UX | Responsive desktop / tablet / phone layouts, accessibility names, keyboard model | Implemented (structure) | E2E `UX*`, `A11Y*`; contrast and screen readers not measured |
@@ -52,7 +52,7 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 
 ## Open problems (priority)
 
-1. **P1** Offline live preview broken (F-02) — decide approach in `SECURITY_AUDIT.md` §1.
+1. **P1** Verify offline preview on Firefox/WebKit (CI) and on a live host with the cache header.
 2. **P1** No reachable deployment → headers, installability, icons, privacy URL unverified live.
 3. **P2** Real-device / Safari / WebView testing.
 4. **P2** SHA-pinned actions; switch CI to `npm ci`.

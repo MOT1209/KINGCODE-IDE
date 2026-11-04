@@ -2,6 +2,8 @@
 
 `<meta>` tags cannot set `frame-ancestors`, `X-Frame-Options`, `Permissions-Policy` or HSTS. kingCode is a static site, so set these at the host. The app already ships a meta CSP and `referrer: no-referrer`. Ready-made configs: **`vercel.json`** (Vercel) and **`_headers`** (Netlify / Cloudflare Pages) — structure checked by `npm run store:check`, **not yet exercised on a live host**.
 
+**Also required for the offline preview (1.5.1):** `/sandbox.html` must be served with `Cache-Control: public, max-age=31536000, immutable` (already in both configs). The app requests it at a versioned URL (`?v=<version>`), so a release invalidates it; without this header the live preview does not load offline.
+
 Headers sent for every path:
 
 ```
