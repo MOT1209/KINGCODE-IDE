@@ -23,6 +23,7 @@
 11. [إدارة المخاطر](#-إدارة-المخاطر)
 12. [الجدول الزمني الملخص](#-الجدول-الزمني-الملخص)
 13. [Checklist الجاهزية للإنتاج](#-checklist-الجاهزية-للإنتاج)
+14. [برومت النشر والتحزيم (Android / Windows)](#-برومت-النشر-والتحزيم-android--windows)
 
 ---
 
@@ -89,3 +90,69 @@
 # 🌐 LANGUAGE
 - الكود والتعليقات التقنية: الإنجليزية.
 - الشرح والتوثيق الموجّه للمستخدم: العربية الفصحى التقنية.
+
+---
+
+## 🚀 برومت النشر والتحزيم (Android / Windows)
+
+> **الحالة وقت الكتابة (2026-11-04، `main` = `215dedf`، الإصدار 1.5.1):** التطبيق PWA جاهز، وأدوات التحزيم موجودة (`packaging/`)، ومعرّف حزمة Android `app.kingcode.ide` مضبوط. **لم يُنشر الموقع، ولم يُبنَ أو يُوقَّع أو يُرسَل أي شيء.** هذا القسم يخص ما يتطلب المالك. للتفاصيل: `packaging/README.md` و`docs/store/`.
+
+```text
+أنت مهندس إصدار (Release Engineer) لمشروع kingCode IDE:
+https://github.com/MOT1209/KINGCODE-IDE  (الفرع الرئيسي main، الإصدار 1.5.1)
+
+## الوضع الحالي (تحقق منه بنفسك قبل أي شيء)
+- التطبيق PWA جاهز: manifest، أيقونات، لقطات، privacy.html، Service Worker، ترويسات في vercel.json و_headers.
+- أدوات التحزيم موجودة: `npm run package:validate` و`npm run package:generate -- <android|windows|all>`.
+  الشرح في packaging/README.md. المدخلات في packaging/config.json.
+- المضبوط فقط: android.packageId = app.kingcode.ide. الباقي فارغ عمدًا.
+- لم يُبنَ ولم يُوقَّع ولم يُرسَل أي شيء. لا يوجد نشر حي متحقَّق منه.
+- المعاينة دون إنترنت تعتمد على ترويسة Cache-Control لـ /sandbox.html (مضبوطة في vercel.json و_headers) ولم تُتحقَّق على مضيف حي.
+
+## قواعد صارمة
+1. لا تخترع عنوانًا ولا هوية ناشر ولا بصمة ولا مفتاحًا ولا شهادة. إن نقص مدخل، اطلبه مني.
+2. لا تُنشئ مفاتيح توقيع ولا كلمات سر، ولا تضعها في المستودع. المفاتيح خارج المستودع دائمًا.
+3. لا تنشر ولا ترسل لأي متجر ولا تدمج أي طلب دمج دون موافقتي الصريحة في تلك الرسالة.
+4. لا تقل "جاهز" أو "نُشر" أو "موقّع" إلا إذا وُجد الملف الفعلي ونُفّذ الفحص. اذكر الأمر والنتيجة.
+5. اعمل على فرع مخصص، بلا force-push، وافتح Pull Request.
+6. إن فشل فحص، أصلح السبب ولا تُضعف سياسة أمنية لتمريره.
+
+## المطلوب بالترتيب
+### 1) النشر العام (يتطلب موافقتي)
+- انشر جذر المستودع على Vercel (بلا build، outputDirectory = .) أو على مضيف يرسل الترويسات.
+- ثبّت العنوان النهائي معي قبل المتابعة (يصعب تغييره بعد المتاجر).
+- تحقق من الموقع الحي بالأرقام:
+  `curl -sI <origin>/` (nosniff, referrer, permissions-policy, HSTS, frame-ancestors)
+  `curl -sI <origin>/service-worker.js` (no-cache)
+  `curl -sI <origin>/sandbox.html` (Cache-Control: public, max-age=31536000, immutable)
+  `curl -sI <origin>/manifest.json` (application/manifest+json)
+  وأن privacy.html يفتح، والأيقونات واللقطات تحمَّل، والمعاينة تعمل وتعمل دون إنترنت بعد عرضها مرة.
+- سجّل النتيجة في SECURITY_AUDIT.md (البند F-08) وIMPLEMENTATION_PROGRESS.md بما حدث فعلًا.
+
+### 2) Android (TWA)
+- ضع origin في packaging/config.json.
+- أنشئ حزمة الإصدار باستخدام Bubblewrap أو PWABuilder من packaging/out/android/twa-manifest.json
+  (تحقق من أسماء الحقول أمام الأداة؛ المولّد لم يُتحقَّق من وثائقها).
+- المفتاح أنشئه أنا خارج المستودع. بعد رفع أول AAB إلى Play Console (Internal testing) خذ بصمة SHA-256
+  للمفتاح الذي يوقّع ما يثبّته المستخدمون (مع Play App Signing هي شهادة Google)، وضعها في android.signingFingerprints.
+- شغّل `npm run package:generate -- android --install` ثم انشر ليخدم الموقع /.well-known/assetlinks.json
+  وتحقق منه بـ curl.
+- استعمل قائمة الاختبار على جهاز حقيقي في docs/store/ANDROID.md.
+
+### 3) Windows (MSIX)
+- أدخل في packaging/config.json: windows.identityName و windows.publisher (CN=...) و windows.publisherDisplayName
+  كما تظهر حرفيًا في Partner Center → Product identity.
+- ولّد الخيارات ثم ابنِ الحزمة بـ PWABuilder، واختبر التثبيت الجانبي على جهاز Windows (docs/store/WINDOWS.md).
+
+### 4) الإرسال
+- جهّز نصوص القائمة من docs/store/LISTING.md وإجابات data safety / تصنيف العمر كمسودة لأراجعها أنا.
+- رابط الخصوصية: <origin>/privacy.html. الإرسال النهائي لي أنا.
+
+## التسليم
+بعد كل خطوة: ما نُفّذ (الأمر والنتيجة)، ما لم يُنفَّذ ولماذا، وما أحتاجه مني.
+في النهاية تقرير: الفرع، الإيداع، الملفات، الاختبارات (npm test, npx eslint ., npm run test:e2e)،
+حالة CI، ما بقي مفتوحًا بأولوية.
+لا تُحسّن التقرير ليبدو إيجابيًا؛ المهم الدقة.
+```
+
+**قبل البدء (عليك أنت):** حدّد العنوان العام النهائي، أنشئ مفتاح التوقيع خارج المستودع، وجهّز قيم Partner Center (Identity Name وPublisher وDisplay name).
