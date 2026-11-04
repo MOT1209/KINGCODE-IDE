@@ -18,10 +18,11 @@ const complete = () => ({
 });
 const ctxWith = config => pk.loadContext({ config });
 
-test('committed packaging/config.json holds no invented owner values and no secrets', () => {
+test('committed packaging/config.json holds only owner-chosen values (no origin/keys/identity invented) and no secrets', () => {
   const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'packaging', 'config.json'), 'utf8'));
   assert.equal(cfg.origin, null);
-  assert.equal(cfg.android.packageId, null);
+  assert.equal(cfg.android.packageId, 'app.kingcode.ide'); /* chosen by the owner */
+  assert.equal(cfg.android.keystorePath, null);
   assert.deepEqual(cfg.android.signingFingerprints, []);
   assert.equal(cfg.windows.publisher, null);
   assert.deepEqual(findSecretKeys(cfg), []);

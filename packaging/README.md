@@ -8,7 +8,7 @@ _Status: **tooling only**. This generates the build inputs for Bubblewrap/PWABui
 |---|---|---|
 | App name, colors, icons, start URL, shortcuts, screenshots | `manifest.json` | repo |
 | Version (`x.y.z`; Android `versionCode = major*10000+minor*100+patch`, Windows `x.y.z.0`) | `package.json` | repo |
-| Origin, package id, publisher identity, key alias/path, signing fingerprints | `packaging/config.json` | **owner** (all `null`/empty today — nothing is invented) |
+| Origin, package id, publisher identity, key alias/path, signing fingerprints | `packaging/config.json` | **owner** (only `android.packageId = app.kingcode.ide`, chosen by the owner, is set; origin, keys and Windows identity are still empty — nothing is invented) |
 
 Never put passwords, keystores, certificates or tokens in `config.json`; the validator rejects secret-looking keys. Keep keystores outside the repository.
 
@@ -27,7 +27,7 @@ Outputs (`packaging/out/<platform>/`): Android → `twa-manifest.json` (+ `.well
 ## What remains for the owner (in order)
 
 1. Public HTTPS origin (set `origin`); deploy; `curl -I` the headers (`docs/security/HOSTING_HEADERS.md`).
-2. Android: choose `packageId` (permanent), create the keystore **outside the repo**, build with Bubblewrap/PWABuilder from `twa-manifest.json`, then put the SHA-256 of the key that signs what users install (Play App Signing: Google's certificate) into `signingFingerprints`, `generate android --install`, redeploy so `/.well-known/assetlinks.json` is live. See `docs/store/ANDROID.md`.
+2. Android: `packageId` is set (permanent); create the keystore **outside the repo**, build with Bubblewrap/PWABuilder from `twa-manifest.json`, then put the SHA-256 of the key that signs what users install (Play App Signing: Google's certificate) into `signingFingerprints`, `generate android --install`, redeploy so `/.well-known/assetlinks.json` is live. See `docs/store/ANDROID.md`.
 3. Windows: reserve the name in Partner Center, copy Identity Name / Publisher / display name into `config.json`, generate, build with PWABuilder. See `docs/store/WINDOWS.md`.
 4. Test on real devices; submit.
 
