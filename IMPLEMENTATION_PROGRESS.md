@@ -45,7 +45,8 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 
 | Item | Status |
 |---|---|
-| Android TWA (Bubblewrap/PWABuilder), AAB, signing, Play listing | Planned — nothing built, signed or submitted |
+| Packaging generators (`npm run package:*`, plug-in registry, validation, owner-input reporting) | Implemented — 8 unit tests; output not yet accepted-by-tool verified |
+| Android TWA build (Bubblewrap/PWABuilder), AAB, signing, Play listing | Planned — nothing built, signed or submitted |
 | Digital Asset Links file | Not Implemented (needs real signing fingerprint; `store:check` forbids placeholders) |
 | Windows MSIX, Partner Center identity, signing | Planned — nothing built, signed or submitted |
 | Real-device testing (Android, Windows, iOS Safari) | Not Implemented |
@@ -62,7 +63,7 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 
 | Command | Result |
 |---|---|
-| `npm test` | static 19/19; unit 32/32 + 12/12; store:check 53/53 — PASS |
+| `npm test` | static 19, unit 32 + 12 + 8, store:check 53 — PASS |
 | `npx eslint .` | clean |
 | `npm audit` | 0 vulnerabilities (after override); 5 moderate before |
 | `npm run test:e2e` (Chromium) | 50/50 — PASS |

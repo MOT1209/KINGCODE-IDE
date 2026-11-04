@@ -59,9 +59,10 @@ node tools/server.js
 
 | الأمر | ما يفعله | يتطلب |
 |---|---|---|
-| `npm test` | 19 فحصًا ثابتًا + 44 اختبار وحدة (`node:test`) + 53 فحص `store:check` | Node فقط، بلا تبعيات |
+| `npm test` | 19 فحصًا ثابتًا + 52 اختبار وحدة (`node:test`) + 53 فحص `store:check` | Node فقط، بلا تبعيات |
 | `npm run test:e2e` | 50 اختبارًا في متصفح حقيقي (Chromium وFirefox وWebKit في CI عبر `KC_BROWSER`): سير العمل الكامل، انحدارات سلامة البيانات، IndexedDB والترحيل، المجلدات، المحرر (بحث/استبدال/تعليق/إعدادات/ملف 50 ألف سطر)، إمكانية الوصول، العزل الأمني، وتحديث PWA الحقيقي بين نسختين | `npm i` ثم `npx playwright install chromium firefox webkit` |
 | `npm run store:check` | جاهزية المتاجر: manifest وأبعاد الأيقونات واللقطات وصفحة الخصوصية وترويسات الاستضافة وغياب استدعاءات الشبكة/الكوكيز (جزء من `npm test`) | Node فقط |
+| `npm run package:validate` | مولّدات حزم Android/Windows وفحص مدخلات المالك الناقصة (لا تبني ولا توقّع) — `packaging/README.md` | Node فقط |
 | `npm run lint` | ESLint (يلتقط أخطاء الكتابة بين الملفات عبر globals مصرَّح بها) | `npm i` |
 
 التبعيات كلها **dev-only** (`playwright`, `eslint`, `@eslint/js`, `globals`)؛ التطبيق نفسه بلا أي تبعية وقت التشغيل. CI (GitHub Actions) يشغّل 3 مهام على كل push وPR: `verify` (صياغة + `npm test`)، `lint`، `e2e`.
