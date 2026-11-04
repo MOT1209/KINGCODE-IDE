@@ -1,0 +1,15 @@
+{
+  "_comment": "Owner inputs for store packaging. null = not decided yet. Never put passwords, keystores or tokens here (the validator rejects such keys). See packaging/README.md.",
+  "origin": null,
+  "android": {
+    "packageId": "app.kingcode.ide",
+    "keystorePath": null,
+    "keyAlias": null,
+    "signingFingerprints": []
+  },
+  "windows": {
+    "identityName": null,
+    "publisher": null,
+    "publisherDisplayName": null
+  }
+}

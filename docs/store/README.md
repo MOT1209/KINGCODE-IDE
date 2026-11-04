@@ -4,6 +4,10 @@ _Status (v1.5.0): the **app is store-ready as a PWA**; nothing has been submitte
 
 > **Verification note.** Everything here about store policies, fees, tool versions and console wording is my assessment and **was not checked against the vendors' current documentation** (no access from this environment). Treat each such statement as "verify before relying on it". What *is* verified is marked "(checked by `npm run store:check`)".
 
+## Tooling
+
+`npm run package:validate` shows which owner inputs are missing; `npm run package:generate` produces the Bubblewrap/PWABuilder inputs from the manifest. See `packaging/README.md`.
+
 ## Strategy (decision record: `docs/architecture/DECISIONS.md` ADR-8)
 
 Package the existing PWA instead of rewriting it:

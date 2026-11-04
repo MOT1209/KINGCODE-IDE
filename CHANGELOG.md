@@ -3,6 +3,12 @@
 توضّح هذه الوثيقة كل تغيير مهم في المشروع. الترقيم دلالي (SemVer) والصيغة مستندة إلى Keep a Changelog.
 This document records all notable changes to the project (semver, Keep a Changelog style).
 
+## [Unreleased]
+
+### Added
+
+- **Store-packaging scaffolding** (`packaging/`, `tools/package.js`, `tools/packaging/`): `npm run package:list|validate|generate`. Derives Bubblewrap `twa-manifest.json` (+ `assetlinks.json` once fingerprints exist) and a PWABuilder Windows options file from `manifest.json`, `package.json` and owner inputs in `packaging/config.json` (all empty — nothing invented). Refuses incomplete inputs (drafts with `<<OWNER:…>>` under git-ignored `packaging/out/`), rejects http origins, bad ids/fingerprints and secret-looking config keys. Platform registry is plug-in based (one file per platform). 8 unit tests. **Nothing is built, signed or submitted; field names are not verified against Bubblewrap/PWABuilder docs.**
+
 ## [1.5.1] — 2026-11-04
 
 ### Fixed
