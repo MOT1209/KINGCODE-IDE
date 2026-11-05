@@ -222,7 +222,12 @@ const HUB = {
         if (U.$('#hub-body') && body.contains(screen)) paint();
       }, mine.abort.signal).catch(() => { /* إلغاء */ });
     };
-    input.addEventListener('keydown', e => { if (e.key === 'Enter' && this.term.id) { e.preventDefault(); send(input.value + '\n'); input.value = ''; } });
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (!this.term.id) { UI.toast('الجلسة قيد البدء… أعد المحاولة بعد لحظة', 'info', 1800); return; } /* لا نمسح ما كُتب */
+      send(input.value + '\n'); input.value = '';
+    });
     body.append(
       this.h('div', { class: 'hub-row' }, this.btn('+ جلسة جديدة', start, 'primary'),
         this.btn('Ctrl+C', async () => send('\x03')), this.btn('Tab', async () => send('\t')),

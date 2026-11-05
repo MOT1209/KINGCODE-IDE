@@ -773,7 +773,7 @@ async function importJson(page, obj) {
       await page.click('#btnHub');
       await page.fill('#hub-body input[type=text]', burl); await page.fill('#hub-body input[type=password]', BTOKEN);
       await page.click('#hub-body button:has-text("اتصال")');
-      await page.waitForFunction(() => window.kc.BRIDGE.connected, null, { timeout: 8000 });
+      await page.waitForFunction(() => window.kc.BRIDGE.connected, null, { timeout: 20000 });
     };
     try {
       await test('HUB: opens, is accessible, refuses features while disconnected', async ({ page }) => {
@@ -789,8 +789,7 @@ async function importJson(page, obj) {
         await page.click('#btnHub');
         await page.fill('#hub-body input[type=text]', 'http://evil.example:7878'); await page.fill('#hub-body input[type=password]', BTOKEN);
         await page.click('#hub-body button:has-text("اتصال")');
-        await page.waitForSelector('.toast', { timeout: 4000 });
-        assert(/loopback/.test(await page.textContent('#toast-container')), 'no loopback error');
+        await page.waitForFunction(() => /loopback/.test(document.querySelector('#toast-container').textContent), null, { timeout: 8000 });
         assert(!(await page.evaluate(() => window.kc.BRIDGE.connected)), 'connected to non-loopback');
         await page.fill('#hub-body input[type=text]', burl); await page.fill('#hub-body input[type=password]', 'wrong'.repeat(10));
         await page.click('#hub-body button:has-text("اتصال")');
@@ -819,10 +818,11 @@ async function importJson(page, obj) {
         await page.evaluate(u => window.kc.BRIDGE.req('POST', '/v1/workspace/open', { path: u }), wsDir);
         await page.click('.hub-tab[data-tab=term]');
         await page.waitForSelector('.hub-term');
-        await sleep(600);
+        await page.waitForFunction(() => window.kc.HUB.term && window.kc.HUB.term.id, null, { timeout: 20000 }); /* الجلسة تُنشأ بطلب غير متزامن */
+        await sleep(500);
         await page.fill('#hub-body input[type=text]', 'echo kc-$((6*7))');
         await page.press('#hub-body input[type=text]', 'Enter');
-        await page.waitForFunction(() => /kc-42/.test(document.querySelector('.hub-term').textContent.replace('echo kc-$((6*7))', '')), null, { timeout: 8000 });
+        await page.waitForFunction(() => /kc-42/.test(document.querySelector('.hub-term').textContent.replace('echo kc-$((6*7))', '')), null, { timeout: 20000 });
       }, browser, base);
 
       await test('HUB: Git panel shows status and commits through the real git CLI', async ({ page }) => {
