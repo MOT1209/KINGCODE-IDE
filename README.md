@@ -12,6 +12,20 @@
 
 ---
 
+
+## King Bridge & Dev Hub (v1.6.0)
+
+The browser app alone cannot run a shell, `git` or agent CLIs, so kingCode ships an optional **local companion** (`bridge/`, zero dependencies, Node ≥ 18):
+
+```bash
+npm run bridge -- --origin http://127.0.0.1:8123 --workspace ~/my-project   # prints where the token is stored
+npm run dev                                                                   # serves the app on :8123
+```
+
+Open **🛠 Dev Hub** in the app → paste the token (`~/.kingcode/token`) → Connect. You get: real workspace files (edits are written to disk), Git (status/stage/commit/branches/merge/rebase/push/pull), a **real PTY terminal** (Linux/macOS with python3; text rendering only), **OpenCode and Claude Code** agent runs with read / edit / full(approval) profiles, MCP server management with a real connection test, Skills, sandboxed Extensions and project templates. Security model, API and an honest per-feature status table: [`docs/architecture/BRIDGE.md`](docs/architecture/BRIDGE.md). Tests: `npm run test:bridge` (27) and the `HUB:` cases in `npm run test:e2e`.
+
+> Not built or tested here: Tauri/Windows and Capacitor/Android shells (toolchains unavailable — see ADR-9), Windows ConPTY, a live OpenCode/Claude Code model run, the debugger and the cloud layer.
+
 ## ✨ المزايا
 
 - **محرر CodeMirror** (مستنسخ محليًا في `vendor/` — لا يُحمَّل أي CDN وقت التشغيل):

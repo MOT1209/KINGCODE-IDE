@@ -39,7 +39,7 @@ jobs:
           node-version: '20'
 
       - name: Install dev tooling (ESLint; dev-only)
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: ESLint
         run: npm run lint
@@ -62,7 +62,7 @@ jobs:
 
       - name: Install dev tooling (Playwright is a devDependency only)
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: "E2E (real browser - workflows, regression, security)"
