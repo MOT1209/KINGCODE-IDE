@@ -21,7 +21,7 @@ jobs:
       - name: Syntax gate (node --check)
         run: |
           set -e
-          for f in js/*.js tools/*.js tools/unit/*.js tools/packaging/*.js tools/packaging/platforms/*.js; do
+          for f in js/*.js tools/*.js tools/unit/*.js tools/packaging/*.js tools/packaging/platforms/*.js bridge/*.js bridge/lib/*.js bridge/test/*.js; do
             node --check "$f"
             echo "OK  $f"
           done

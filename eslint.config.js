@@ -35,7 +35,7 @@ module.exports = [
     rules: sharedRules
   },
   {
-    files: ['tools/**/*.js', 'eslint.config.js'],
+    files: ['tools/**/*.js', 'bridge/**/*.js', 'eslint.config.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: { ...globals.node } },
     rules: sharedRules
   },

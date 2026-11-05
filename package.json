@@ -20,7 +20,9 @@
   },
   "scripts": {
     "dev": "node tools/server.js",
-    "test": "node tools/ci-smoke.js && node tools/unit/core.test.js && node tools/unit/preview.test.js && node tools/unit/packaging.test.js && node tools/store-check.js",
+    "bridge": "node bridge/cli.js",
+    "test:bridge": "node --test bridge/test/bridge.test.js",
+    "test": "node tools/ci-smoke.js && node --test bridge/test/bridge.test.js && node tools/unit/core.test.js && node tools/unit/preview.test.js && node tools/unit/packaging.test.js && node tools/store-check.js",
     "test:unit": "node tools/unit/core.test.js && node tools/unit/preview.test.js && node tools/unit/packaging.test.js",
     "test:e2e": "node tools/e2e.js",
     "lint": "eslint .",
