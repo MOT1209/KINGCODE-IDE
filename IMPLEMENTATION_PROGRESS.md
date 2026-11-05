@@ -19,9 +19,9 @@ _Status as of commit `fd445f2` (v1.5.0) plus this branch, 2026-11-03. Verified a
 | PWA | Installed (standalone) mode behaviour on real devices | Not Implemented → untested | no device access |
 | UX | Responsive desktop / tablet / phone layouts, accessibility names, keyboard model | Implemented (structure) | E2E `UX*`, `A11Y*`; contrast and screen readers not measured |
 | Privacy | `privacy.html` (AR/EN), linked from Settings | Implemented | E2E `STORE:*`, `store:check` |
-| Terminal | Real terminal | Not Implemented | assessment in `MULTI_PLATFORM_STRATEGY.md` §8 |
-| Git / GitHub | Any integration | Not Implemented | — |
-| AI assistant / Agents | Any | Not Implemented | — |
+| Terminal | Real terminal | Implemented (Linux PTY, via the optional bridge) | bridge test `terminal:`, E2E `HUB: terminal`; Windows/macOS unverified |
+| Git / GitHub | Git via bridge; GitHub REST | Implemented (Git) / Implemented, not verified (GitHub) | bridge tests, E2E `HUB: Git`; see `docs/architecture/BRIDGE.md` |
+| AI assistant / Agents | OpenCode + Claude Code runner | Implemented, not verified with a live model | bridge `agents:` tests use fake CLIs |
 | Visual builder | Any | Not Implemented | — |
 | Extensions / Marketplace | Any | Not Implemented | — |
 | Accounts / Cloud sync | Any | Not Implemented | — |

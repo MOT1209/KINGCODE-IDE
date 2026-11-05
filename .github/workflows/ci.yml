@@ -21,7 +21,7 @@ jobs:
       - name: Syntax gate (node --check)
         run: |
           set -e
-          for f in js/*.js tools/*.js tools/unit/*.js tools/packaging/*.js tools/packaging/platforms/*.js; do
+          for f in js/*.js tools/*.js tools/unit/*.js tools/packaging/*.js tools/packaging/platforms/*.js bridge/*.js bridge/lib/*.js bridge/test/*.js; do
             node --check "$f"
             echo "OK  $f"
           done
@@ -39,7 +39,7 @@ jobs:
           node-version: '20'
 
       - name: Install dev tooling (ESLint; dev-only)
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: ESLint
         run: npm run lint
@@ -62,7 +62,7 @@ jobs:
 
       - name: Install dev tooling (Playwright is a devDependency only)
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: "E2E (real browser - workflows, regression, security)"

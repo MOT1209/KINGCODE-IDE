@@ -20,6 +20,8 @@ const APP = {
     TABS.init();
     PALETTE.init();
     UI.init();
+    HUB.init();
+    EXT_HOST.init();
 
     /* 3) المحرر والمعاينة */
     EDITOR.init(U.$('#editor-container'));
@@ -58,7 +60,7 @@ const APP = {
     }
 
     /* 8) مقبض تنقيح واحد (kc) للاختبارات — لا أسماء عالمية إضافية بعد إزالة onclick المضمّن */
-    window.kc = { KC, STATE, EDITOR, FILES, TABS, PREVIEW, FILE_LIST, UI, PALETTE, Commands, APP };
+    window.kc = { KC, STATE, EDITOR, FILES, TABS, PREVIEW, FILE_LIST, UI, PALETTE, Commands, APP, BRIDGE, HUB, EXT_HOST };
 
     /* 9) Service Worker */
     APP.registerSw();

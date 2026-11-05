@@ -10,7 +10,7 @@ const globals = require('globals');
 /* globals التي يعرّفها كل ملف js/ (const على مستوى السكربت) */
 const appGlobals = Object.fromEntries([
   'KC', 'U', 'STORE', 'STATE', 'EDITOR', 'FILES', 'FILE_LIST', 'TABS', 'PREVIEW', 'PreviewBuilder',
-  'Commands', 'PALETTE', 'UI', 'APP', 'CodeMirror'
+  'Commands', 'PALETTE', 'UI', 'APP', 'CodeMirror', 'BRIDGE', 'HUB', 'EXT_HOST'
 ].map(n => [n, 'readonly']));
 
 const sharedRules = {
@@ -35,7 +35,7 @@ module.exports = [
     rules: sharedRules
   },
   {
-    files: ['tools/**/*.js', 'eslint.config.js'],
+    files: ['tools/**/*.js', 'bridge/**/*.js', 'eslint.config.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: { ...globals.node } },
     rules: sharedRules
   },

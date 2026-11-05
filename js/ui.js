@@ -72,7 +72,7 @@ const UI = {
 
     /* نقر خلف الطبقات يغلق أي modal */
     document.addEventListener('click', e => {
-      for (const id of ['command-palette', 'settings-modal', 'confirm-modal', 'prompt-modal']) {
+      for (const id of ['command-palette', 'settings-modal', 'hub-modal', 'confirm-modal', 'prompt-modal']) {
         if (e.target.id === id) {
           if (id === 'prompt-modal') this.cancelPrompt();
           else if (id === 'confirm-modal') this.cancelConfirm();

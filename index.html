@@ -6,7 +6,7 @@
   <meta name="description" content="kingCode — محرر أكواد احترافي يعمل في المتصفح ويُثبَّت كتطبيق على الهاتف والآيباد والحاسوب، ويشتغل دون إنترنت." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#12253a" id="metaTheme" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:* http://localhost:*; font-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
   <meta name="referrer" content="no-referrer" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -79,6 +79,7 @@
           <div class="tabs" id="tab-container" role="tablist" dir="ltr" aria-label="التبويبات المفتوحة"></div>
           <div class="tab-controls">
             <button class="btn btn-icon" id="btnSidebar" title="الشريط الجانبي (الملفات)" aria-label="إظهار أو إخفاء الشريط الجانبي" aria-controls="sidebar" aria-expanded="true">☰</button>
+            <button class="btn btn-icon" id="btnHub" title="مركز التطوير: طرفية، Git، وكلاء (الجسر المحلي)" aria-label="مركز التطوير">🛠</button>
             <button class="btn btn-icon" id="btnPalette" title="لوحة الأوامر (Ctrl+P)" aria-label="لوحة الأوامر">⌘</button>
             <button class="btn btn-icon" id="btnSplitPreview" title="إظهار/إخفاء المعاينة" aria-label="إظهار أو إخفاء المعاينة">◫</button>
             <button class="btn btn-icon" id="btnThemeToggle" title="تبديل الوضع الداكن/الفاتح" aria-label="تبديل الوضع الداكن أو الفاتح">🌙</button>
@@ -143,6 +144,16 @@
       <footer class="palette-hints">
         <span><kbd>↑↓</kbd> تنقل</span><span><kbd>Enter</kbd> تنفيذ</span><span><kbd>Esc</kbd> إغلاق</span>
       </footer>
+    </div>
+
+    <!-- مركز التطوير (الجسر المحلي) -->
+    <div class="modal hub-modal" id="hub-modal" style="display: none;" role="dialog" aria-modal="true" aria-label="مركز التطوير">
+      <header class="hub-header">
+        <h3>🛠 مركز التطوير</h3>
+        <button class="btn btn-icon" id="hub-close" aria-label="إغلاق">✕</button>
+      </header>
+      <nav class="hub-tabs" id="hub-tabs" role="tablist" aria-label="أقسام مركز التطوير"></nav>
+      <div class="hub-body" id="hub-body" role="tabpanel"></div>
     </div>
 
     <!-- الإعدادات -->
@@ -270,6 +281,9 @@
   <script src="js/preview.js"></script>
   <script src="js/commands.js"></script>
   <script src="js/palette.js"></script>
+  <script src="js/bridge.js"></script>
+  <script src="js/hub.js"></script>
+  <script src="js/extensions-host.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>
