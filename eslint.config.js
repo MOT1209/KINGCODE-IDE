@@ -10,7 +10,7 @@ const globals = require('globals');
 /* globals التي يعرّفها كل ملف js/ (const على مستوى السكربت) */
 const appGlobals = Object.fromEntries([
   'KC', 'U', 'STORE', 'STATE', 'EDITOR', 'FILES', 'FILE_LIST', 'TABS', 'PREVIEW', 'PreviewBuilder',
-  'Commands', 'PALETTE', 'UI', 'APP', 'CodeMirror'
+  'Commands', 'PALETTE', 'UI', 'APP', 'CodeMirror', 'BRIDGE', 'HUB', 'EXT_HOST'
 ].map(n => [n, 'readonly']));
 
 const sharedRules = {

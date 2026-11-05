@@ -41,6 +41,7 @@
     <li>لا حسابات ولا تسجيل دخول.</li>
     <li>لا أدوات تحليل أو تتبع أو إعلانات، ولا ملفات تعريف ارتباط (cookies).</li>
     <li>لا خدمات طرف ثالث، ولا يرسل التطبيق ملفاتك أو أي معلومات عنك عبر الشبكة.</li>
+    <li>استثناء اختياري: إن شغّلت «جسر kingCode» على جهازك وربطته يدويًا فإن التطبيق يتصل <strong>بعنوان loopback المحلي فقط</strong> (127.0.0.1)؛ لا شيء يخرج من جهازك عبر هذا الاتصال.</li>
     <li>المعاينة تعمل في إطار معزول <strong>بلا وصول للشبكة</strong>؛ الشيفرة التي تكتبها لا تستطيع الاتصال بالإنترنت من داخلها.</li>
   </ul>
 
@@ -68,7 +69,7 @@
     <p><strong>kingCode does not collect your data and does not send it anywhere.</strong> Your projects and settings stay on your device.</p>
     <ul>
       <li><strong>Stored locally:</strong> your project files and settings (IndexedDB, with localStorage as a fallback), a pre-import backup, and the app's own files (service-worker cache) so it works offline.</li>
-      <li><strong>Not done:</strong> no accounts, no analytics/tracking/ads, no cookies, no third-party services. The app never uploads your files; the preview runs in a sandbox with no network access.</li>
+      <li><strong>Not done:</strong> no accounts, no analytics/tracking/ads, no cookies, no third-party services. The app never uploads your files; the preview runs in a sandbox with no network access. The only optional exception is the local bridge: if you run the kingCode Bridge on your own computer and connect to it, the app talks to its loopback address (127.0.0.1) only.</li>
       <li><strong>Hosting:</strong> like any website, the host that serves the app files may keep ordinary server logs (such as IP address and request time). Those belong to the host, not the app, and never include your projects.</li>
       <li><strong>Your control:</strong> export/import are local file operations. Delete everything by clearing site/app data in your browser or OS, or by uninstalling the app (export your project first from Settings).</li>
       <li><strong>Children:</strong> no personal data is collected from anyone, including children.</li>

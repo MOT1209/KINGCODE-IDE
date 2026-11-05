@@ -80,7 +80,11 @@ rec('the app links to the privacy page', /href="privacy\.html"/.test(html));
 /* التعليقات تُحذف أولًا: تعليق يذكر fetch/WebSocket لا يعني استدعاءً */
 const stripComments = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/[^\n]*$/gm, '$1');
 const shipped = stripComments(['index.html', 'privacy.html', 'sandbox.html'].map(read).join('\n') + assets.filter(a => /^js\//.test(a)).map(read).join('\n'));
-rec('shipped code makes no network calls other than the service worker', !/XMLHttpRequest|WebSocket|sendBeacon|navigator\.sendBeacon/.test(shipped) && (shipped.match(/\bfetch\(/g) || []).length === 0);
+const shippedNoBridge = stripComments(['index.html', 'privacy.html', 'sandbox.html'].map(read).join('\n') + assets.filter(a => /^js\//.test(a) && a !== 'js/bridge.js').map(read).join('\n'));
+rec('shipped code makes no network calls other than the service worker and the loopback-only bridge client', !/XMLHttpRequest|WebSocket|sendBeacon|navigator\.sendBeacon/.test(shipped) && (shippedNoBridge.match(/\bfetch\(/g) || []).length === 0);
+const bridgeSrc = stripComments(read('js/bridge.js'));
+rec('js/bridge.js only talks to loopback (validUrl guard + credentials omitted)', /validUrl\(u\)/.test(bridgeSrc) && /127\.0\.0\.1/.test(bridgeSrc) && /credentials: 'omit'/.test(bridgeSrc) && /if \(!this\.validUrl\(this\.url\)\)/.test(bridgeSrc));
+rec("index.html connect-src allows only 'self' and loopback", /connect-src 'self' http:\/\/127\.0\.0\.1:\* http:\/\/localhost:\*;/.test(html));
 rec('shipped code sets no cookies', !/document\.cookie/.test(shipped));
 
 /* ---------- hosting headers ---------- */

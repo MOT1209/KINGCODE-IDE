@@ -5,6 +5,15 @@ This document records all notable changes to the project (semver, Keep a Changel
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-11-05
+
+### Added — King Bridge and Dev Hub
+
+- **`bridge/` — King Bridge**, a zero-dependency local companion server (`npm run bridge`): sandboxed workspace file system (traversal/symlink-escape rejection, atomic writes, conflict detection, recoverable trash + undo, file watching), Git via the system `git` CLI (init/status/stage/commit/branch/merge/rebase/diff/log/fetch/pull/push/clone with argument validation), GitHub REST (PRs/issues; token stays server-side), real terminal sessions (PTY through a Python helper on Linux/macOS, pipes otherwise), agent runner for **OpenCode (primary) and Claude Code** CLIs with permission profiles, streaming, cancellation, usage/cost capture and task history, MCP registry with a real JSON-RPC connection test (stdio + HTTP), Skills manager, extension registry with permission/compatibility checks, and extensible project templates. Loopback bind, bearer token, Host/Origin checks, audit log. 27 tests (`npm run test:bridge`).
+- **Dev Hub UI** (`js/bridge.js`, `js/hub.js`, `js/extensions-host.js`, `ext-sandbox.html`): connect, workspace, Git, terminal, agent, MCP, skills, extensions and templates panels, responsive (full-screen on phones), keyboard/ARIA labelled. Extensions run in an opaque-origin sandboxed iframe with a CSP that blocks all network and a permission-checked RPC.
+- CSP `connect-src` now also allows `http://127.0.0.1:*` and `http://localhost:*`; `store:check` verifies `fetch` exists only in `js/bridge.js` and that it is loopback-guarded. Privacy page updated.
+- Limits are documented in `docs/architecture/BRIDGE.md`.
+
 ### Added
 
 - **Store-packaging scaffolding** (`packaging/`, `tools/package.js`, `tools/packaging/`): `npm run package:list|validate|generate`. Derives Bubblewrap `twa-manifest.json` (+ `assetlinks.json` once fingerprints exist) and a PWABuilder Windows options file from `manifest.json`, `package.json` and owner inputs in `packaging/config.json` (all empty — nothing invented). Refuses incomplete inputs (drafts with `<<OWNER:…>>` under git-ignored `packaging/out/`), rejects http origins, bad ids/fingerprints and secret-looking config keys. Platform registry is plug-in based (one file per platform). 8 unit tests. **Nothing is built, signed or submitted; field names are not verified against Bubblewrap/PWABuilder docs.**

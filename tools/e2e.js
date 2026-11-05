@@ -50,7 +50,7 @@ async function startServerAt(dir, port) {
 
 function copyApp(dest) {
   fs.mkdirSync(path.join(dest, 'tools'), { recursive: true });
-  for (const f of ['index.html', 'sandbox.html', 'manifest.json', 'service-worker.js']) fs.copyFileSync(path.join(ROOT, f), path.join(dest, f));
+  for (const f of ['index.html', 'sandbox.html', 'ext-sandbox.html', 'manifest.json', 'service-worker.js']) fs.copyFileSync(path.join(ROOT, f), path.join(dest, f));
   for (const d of ['css', 'js', 'vendor', 'icons']) fs.cpSync(path.join(ROOT, d), path.join(dest, d), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'tools', 'server.js'), path.join(dest, 'tools', 'server.js'));
 }
@@ -116,7 +116,7 @@ async function importJson(page, obj) {
   const server = await startServer(port);
   const base = 'http://127.0.0.1:' + port;
   console.log('Browser: ' + BROWSER_NAME);
-  const browser = await engine.launch();
+  const browser = await engine.launch(process.env.KC_CHROMIUM_PATH ? { executablePath: process.env.KC_CHROMIUM_PATH } : {});
   try {
     /* ---- سير العمل الأساسي ---- */
     await test('WF: launch + default project + edit + reload keeps saved state', async ({ page }) => {
@@ -758,6 +758,136 @@ async function importJson(page, obj) {
       await sleep(200);
       assert(!(await page.evaluate(() => !!window.__xss)), 'XSS executed');
     }, browser, base);
+
+    /* ---- مركز التطوير + الجسر الحقيقي (خادم الجسر يعمل فعلًا داخل الاختبار) ---- */
+    process.env.KINGCODE_HOME = path.join(tmp, 'kchome');
+    process.env.KINGCODE_CLAUDE_BIN = path.join(ROOT, 'bridge/test/fixtures/fake-claude.js');
+    process.env.KINGCODE_OPENCODE_BIN = path.join(ROOT, 'bridge/test/fixtures/fake-opencode.js');
+    const { createBridge } = require('../bridge/server');
+    const wsDir = fs.mkdtempSync(path.join(tmp, 'ws-')); fs.writeFileSync(path.join(wsDir, 'hello.txt'), 'from disk');
+    const BTOKEN = 'e'.repeat(48);
+    const bridge = createBridge({ token: BTOKEN, origins: [base] });
+    const baddr = await bridge.listen(0);
+    const burl = 'http://127.0.0.1:' + baddr.port;
+    const hubConnect = async page => {
+      await page.click('#btnHub');
+      await page.fill('#hub-body input[type=text]', burl); await page.fill('#hub-body input[type=password]', BTOKEN);
+      await page.click('#hub-body button:has-text("اتصال")');
+      await page.waitForFunction(() => window.kc.BRIDGE.connected, null, { timeout: 8000 });
+    };
+    try {
+      await test('HUB: opens, is accessible, refuses features while disconnected', async ({ page }) => {
+        await page.click('#btnHub');
+        assert(await page.isVisible('#hub-modal'), 'hub not visible');
+        assert((await page.getAttribute('#hub-modal', 'role')) === 'dialog', 'role');
+        await page.click('.hub-tab[data-tab=git]');
+        assert(/غير متصل/.test(await page.textContent('#hub-body')), 'should say not connected');
+        await page.keyboard.press('Escape');
+      }, browser, base);
+
+      await test('HUB: connect rejects non-loopback URLs and wrong tokens', async ({ page }) => {
+        await page.click('#btnHub');
+        await page.fill('#hub-body input[type=text]', 'http://evil.example:7878'); await page.fill('#hub-body input[type=password]', BTOKEN);
+        await page.click('#hub-body button:has-text("اتصال")');
+        await page.waitForSelector('.toast', { timeout: 4000 });
+        assert(/loopback/.test(await page.textContent('#toast-container')), 'no loopback error');
+        assert(!(await page.evaluate(() => window.kc.BRIDGE.connected)), 'connected to non-loopback');
+        await page.fill('#hub-body input[type=text]', burl); await page.fill('#hub-body input[type=password]', 'wrong'.repeat(10));
+        await page.click('#hub-body button:has-text("اتصال")');
+        await sleep(600);
+        assert(!(await page.evaluate(() => window.kc.BRIDGE.connected)), 'connected with a wrong token');
+      }, browser, base);
+
+      await test('HUB: connect, open workspace, edit a real file from the editor, saved to disk', async ({ page }) => {
+        await hubConnect(page);
+        assert(/real PTY|pipes only/.test(await page.textContent('.hub-info')), 'info panel');
+        await page.fill('.hub-box input[type=text]', wsDir);
+        await page.click('.hub-box button:has-text("فتح مساحة العمل")');
+        await page.waitForSelector('.hub-tree .hub-link', { timeout: 5000 });
+        await page.click('.hub-link:has-text("hello.txt")');
+        await page.waitForFunction(() => window.kc.STATE.fileByName('hello.txt'), null, { timeout: 4000 });
+        assert((await page.evaluate(() => window.kc.EDITOR.cm.getValue())) === 'from disk', 'editor shows disk content');
+        await typeAll(page, 'edited in browser');
+        await page.waitForFunction(() => true); await sleep(900);
+        const t0 = Date.now();
+        while (Date.now() - t0 < 6000 && fs.readFileSync(path.join(wsDir, 'hello.txt'), 'utf8') !== 'edited in browser') await sleep(150);
+        assert(fs.readFileSync(path.join(wsDir, 'hello.txt'), 'utf8') === 'edited in browser', 'disk not updated');
+      }, browser, base);
+
+      await test('HUB: terminal runs a real command in the workspace', async ({ page }) => {
+        await hubConnect(page);
+        await page.evaluate(u => window.kc.BRIDGE.req('POST', '/v1/workspace/open', { path: u }), wsDir);
+        await page.click('.hub-tab[data-tab=term]');
+        await page.waitForSelector('.hub-term');
+        await sleep(600);
+        await page.fill('#hub-body input[type=text]', 'echo kc-$((6*7))');
+        await page.press('#hub-body input[type=text]', 'Enter');
+        await page.waitForFunction(() => /kc-42/.test(document.querySelector('.hub-term').textContent.replace('echo kc-$((6*7))', '')), null, { timeout: 8000 });
+      }, browser, base);
+
+      await test('HUB: Git panel shows status and commits through the real git CLI', async ({ page }) => {
+        await hubConnect(page);
+        await page.evaluate(u => window.kc.BRIDGE.req('POST', '/v1/workspace/open', { path: u }), wsDir);
+        await page.evaluate(() => window.kc.BRIDGE.req('POST', '/v1/git/init', {}).catch(() => {}));
+        await page.click('.hub-tab[data-tab=git]');
+        await page.waitForSelector('.hub-files', { timeout: 5000 });
+        assert(/hello\.txt/.test(await page.textContent('.hub-files')), 'status lists hello.txt');
+        await page.click('button:has-text("stage all")');
+        await sleep(400);
+        await page.evaluate(() => window.kc.BRIDGE.req('POST', '/v1/git/commit', { message: 'e2e', name: 'T', email: 't@e.x' }));
+        await page.click('button:has-text("السجل")');
+        await page.waitForFunction(() => /e2e/.test(document.querySelector('.hub-pre').textContent), null, { timeout: 5000 });
+      }, browser, base);
+
+      await test('HUB: agent panel streams a run, requires approval for full access, can be cancelled', async ({ page }) => {
+        await hubConnect(page);
+        await page.evaluate(u => window.kc.BRIDGE.req('POST', '/v1/workspace/open', { path: u }), wsDir);
+        await page.click('.hub-tab[data-tab=agent]');
+        await page.waitForSelector('textarea');
+        assert((await page.$$eval('#hub-body select[aria-label="المزوّد"] option', o => o.map(x => x.value))).join() === 'opencode,claude', 'providers');
+        await page.selectOption('#hub-body select[aria-label="المزوّد"]', 'claude');
+        await page.fill('textarea', 'say done');
+        await page.click('button:has-text("تشغيل")');
+        await page.waitForFunction(() => /completed/.test(document.querySelector('#hub-body').textContent), null, { timeout: 10000 });
+        assert(/done!/.test(await page.textContent('.hub-agentlog')), 'result shown');
+        // full profile -> confirmation dialog; declining must not run anything
+        const before = (await bridge.agents.history()).length;
+        await page.selectOption('#hub-body select[aria-label="الصلاحيات"]', 'full');
+        await page.click('button:has-text("تشغيل")');
+        await page.waitForSelector('#confirm-modal', { state: 'visible' });
+        await page.click('#confirm-cancel');
+        await sleep(500);
+        assert((await bridge.agents.history()).length === before, 'agent ran without approval');
+      }, browser, base);
+
+      await test('HUB: extensions run sandboxed, only with granted permissions', async ({ page }) => {
+        await hubConnect(page);
+        const bundle = { manifest: { id: 'e2e-ext', name: 'E2E', version: '1.0.0', main: 'main.js', permissions: ['ui.notify', 'commands.register', 'files.read'] },
+          files: { 'main.js': "kc.registerCommand('hi','E2E hello',function(){ kc.notify('hello-from-ext'); });\nkc.writeFile('x.txt','nope').catch(function(e){ kc.notify('denied:'+e.message); });\ntry { window.__probe = typeof fetch; } catch(e){}\nfetch('/index.html').then(function(){kc.notify('NETWORK-OPEN')}).catch(function(){kc.notify('net-blocked')});" } };
+        await page.evaluate(b => window.kc.BRIDGE.req('POST', '/v1/extensions/install', { bundle: b }), bundle);
+        await page.evaluate(() => window.kc.BRIDGE.req('POST', '/v1/extensions/e2e-ext/granted', { granted: ['ui.notify', 'commands.register'] }));
+        await page.evaluate(() => window.kc.BRIDGE.req('POST', '/v1/extensions/e2e-ext/enabled', { enabled: true }));
+        await page.evaluate(() => window.kc.EXT_HOST.reload());
+        await page.waitForFunction(() => window.kc.Commands.list().some(c => c.id === 'ext.e2e-ext.hi'), null, { timeout: 8000 });
+        await page.waitForFunction(() => /denied:permission denied: files\.write/.test(document.querySelector('#toast-container').textContent), null, { timeout: 5000 });
+        await page.waitForFunction(() => /net-blocked/.test(document.querySelector('#toast-container').textContent), null, { timeout: 5000 });
+        assert(!/NETWORK-OPEN/.test(await page.textContent('#toast-container')), 'extension reached the network');
+        assert(!(await page.evaluate(() => !!window.kc.STATE.fileByName('x.txt'))), 'denied write happened');
+        const sb = await page.evaluate(() => document.querySelector('iframe[title="extension e2e-ext"]').getAttribute('sandbox'));
+        assert(sb === 'allow-scripts', 'sandbox attr: ' + sb);
+        await page.evaluate(() => window.kc.Commands.run('ext.e2e-ext.hi'));
+        await page.waitForFunction(() => /hello-from-ext/.test(document.querySelector('#toast-container').textContent), null, { timeout: 5000 });
+      }, browser, base);
+
+      await test('HUB phone: full-screen, tabs scroll, no horizontal overflow, touch-sized tabs', async ({ page }) => {
+        await page.click('#btnHub').catch(async () => { await page.evaluate(() => window.kc.HUB.open()); });
+        await sleep(300);
+        const m = await page.evaluate(() => { const r = document.querySelector('#hub-modal').getBoundingClientRect(); return { w: r.width, h: r.height, vw: innerWidth, vh: innerHeight, sw: document.documentElement.scrollWidth, tabH: document.querySelector('.hub-tab').getBoundingClientRect().height }; });
+        assert(m.w >= m.vw - 1 && m.h >= m.vh - 1, 'not full screen: ' + JSON.stringify(m));
+        assert(m.sw <= m.vw + 1, 'horizontal overflow: ' + JSON.stringify(m));
+        assert(m.tabH >= 40, 'tab too small: ' + m.tabH);
+      }, browser, base, { viewport: { width: 390, height: 780 }, mobile: true, touch: true });
+    } finally { await bridge.close(); }
   } finally {
     await browser.close(); server.kill();
     fs.rmSync(tmp, { recursive: true, force: true });

@@ -8,8 +8,8 @@ const path = require('path');
 const { HttpError, home, readJson, writeJson, id: vid, satisfies, cmpVer } = require('./util');
 const audit = require('./audit');
 
-const PERMISSIONS = ['ui.notify', 'commands.register', 'files.read', 'files.write', 'git', 'terminal', 'network'];
-const HOST_VERSION = '1.5.1';
+const PERMISSIONS = ['ui.notify', 'commands.register', 'files.read', 'files.write']; // only permissions with a real host API
+const HOST_VERSION = '1.6.0';
 const dir = () => path.join(home(), 'extensions');
 const statePath = () => path.join(home(), 'extensions-state.json');
 const states = () => readJson(statePath(), { ext: {} });

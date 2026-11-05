@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>kingCode extension sandbox</title></head>
+<body>
+<!-- Runs ONE extension in an opaque-origin iframe (sandbox="allow-scripts"): no DOM access to the IDE,
+     no network (CSP default-src 'none'), no storage. The only way out is the permission-checked
+     postMessage RPC below; the host enforces the permissions the user granted. -->
+<script>
+(function () {
+  'use strict';
+  var seq = 0, pending = {}, cmds = {}, started = false;
+  window.addEventListener('message', function (e) {
+    if (e.source !== parent) return;
+    var d = e.data || {};
+    if (d.type === 'init' && !started) { started = true; start(String(d.code)); }
+    else if (d.type === 'reply' && pending[d.seq]) { var p = pending[d.seq]; delete pending[d.seq]; d.error ? p.reject(new Error(d.error)) : p.resolve(d.result); }
+    else if (d.type === 'run' && cmds[d.id]) { try { cmds[d.id](); } catch (err) { call('log', ['command ' + d.id + ' failed: ' + err.message]); } }
+  });
+  function call(method, args) {
+    return new Promise(function (resolve, reject) {
+      var s = ++seq; pending[s] = { resolve: resolve, reject: reject };
+      parent.postMessage({ type: 'call', seq: s, method: method, args: args }, '*');
+    });
+  }
+  function start(code) {
+    window.kc = Object.freeze({
+      notify: function (msg) { return call('notify', [String(msg)]); },
+      registerCommand: function (id, label, fn) { cmds[String(id)] = fn; return call('registerCommand', [String(id), String(label)]); },
+      readFile: function (name) { return call('readFile', [String(name)]); },
+      writeFile: function (name, content) { return call('writeFile', [String(name), String(content)]); }
+    });
+    var s = document.createElement('script');
+    s.textContent = code;
+    document.head.appendChild(s);
+  }
+  parent.postMessage({ type: 'ready' }, '*');
+})();
+</script>
+</body></html>
